@@ -92,15 +92,24 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
   const refreshBackend = useCallback(async () => {
     try {
       const [health, ent] = await Promise.all([api.health(), api.entitlement().catch(() => null)]);
-      setBackend({ online: true, premium: !!ent?.premium_available, entitlement: ent, asrEngine: health.asr_ready ? health.asr : null, nlu: health.nlu });
+      backendRef.current = { online: true, premium: !!ent?.premium_available, entitlement: ent, asrEngine: health.asr_ready ? health.asr : null, nlu: health.nlu };
     } catch {
-      setBackend(OFFLINE);
+      backendRef.current = OFFLINE;
     }
+    setBackend(backendRef.current); // the ref is set first so a caller awaiting this sees the result at once
   }, []);
 
   useEffect(() => {
     void refreshBackend();
   }, [refreshBackend]);
+
+  // Car app: a sleeping server (Render free plan) takes ~1 min to wake, longer than one health check waits.
+  // Keep checking while it is unreachable, so speech goes to the cloud recogniser as soon as it is up.
+  useEffect(() => {
+    if (!inCarApp() || backend.online) return;
+    const t = window.setInterval(() => void refreshBackend(), 10000);
+    return () => window.clearInterval(t);
+  }, [backend.online, refreshBackend]);
 
   /** Shows (and speaks) one reply. */
   const deliver = useCallback(
@@ -170,7 +179,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
           if (intents.length || unsupported.length) setAwaiting(!!reply.pending);
           void api.carLog({ transcript: text, commands: r.commands, model: r.model, latency_ms: r.latency_ms, asr_engine: asr, reply: reply.text })
             .catch(() => undefined);
-          const understood = `Car understood on-device (${r.model}, ${r.latency_ms} ms): ${describeCommands(r.commands)}.`;
+          const understood = `Heard by ${asr ?? 'Android speech recognition'}. Car understood on-device (${r.model}, ${r.latency_ms} ms): ${describeCommands(r.commands)}.`;
           return { ...reply, note: [understood, reply.note].filter(Boolean).join(' ') };
         } catch (e) {
           const reply = await understandLocally(text, current);
@@ -284,12 +293,13 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
     }
   }, [actions, refreshBackend, submit]);
 
-  const listen = useCallback(() => {
+  const listen = useCallback(async () => {
     stopSpeaking();
     actions.ui.setAssistantOpen(true);
+    if (inCarApp() && !backendRef.current.online) await refreshBackend(); // cloud speech recognition if reachable now
     if (backendRef.current.online && recordingSupported()) void listenWithBackend();
     else recognition.start((finalText) => submit(finalText));
-  }, [actions, listenWithBackend, recognition, submit]);
+  }, [actions, listenWithBackend, recognition, refreshBackend, submit]);
 
   const stopListening = useCallback(() => {
     if (recordingRef.current) void recordingRef.current.stop();

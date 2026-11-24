@@ -1,0 +1,1272 @@
+{
+ "model": "cockpit-gemma-270m.q8_0",
+ "n": 2190,
+ "threads": 4,
+ "load_s": 0.42,
+ "rss_model_mb": 75.6,
+ "rss_peak_process_mb": 592.7,
+ "latency_s": {
+  "median": 0.164,
+  "p95": 0.319
+ },
+ "llm": {
+  "all": {
+   "n": 2190,
+   "exact_match": 0.5945,
+   "type_match": 0.7767
+  },
+  "handwritten_unseen_phrasing": {
+   "n": 498,
+   "exact_match": 0.6627,
+   "type_match": 0.759
+  },
+  "multi_command": {
+   "n": 1023,
+   "exact_match": 0.4604,
+   "type_match": 0.7019
+  },
+  "nlu_v2": {
+   "n": 494,
+   "exact_match": 0.7247,
+   "type_match": 0.9352
+  },
+  "no_command": {
+   "n": 175,
+   "exact_match": 0.8171,
+   "type_match": 0.8171
+  }
+ },
+ "errors": [
+  {
+   "text": "Ye wala skip karo aar what song is this tarpor rainbow light chalao",
+   "gold": [
+    {
+     "type": "media.skip",
+     "dir": 1
+    },
+    {
+     "type": "query",
+     "topic": "music"
+    },
+    {
+     "type": "ambient.mode",
+     "mode": "rainbow"
+    }
+   ],
+   "got": [
+    {
+     "type": "media.skip",
+     "dir": 1
+    },
+    {
+     "type": "query",
+     "topic": "music"
+    }
+   ]
+  },
+  {
+   "text": "hauz khas kab tak pahunchenge apram hey, gaadi thandi kar do now",
+   "gold": [
+    {
+     "type": "query",
+     "topic": "eta",
+     "destination": "Hauz Khas"
+    },
+    {
+     "type": "climate.adjustTemp",
+     "delta": -2
+    }
+   ],
+   "got": [
+    {
+     "type": "query",
+     "topic": "eta",
+     "destination": "Hauz Khas"
+    },
+    {
+     "type": "climate.adjustTemp",
+     "delta": 2
+    }
+   ]
+  },
+  {
+   "text": "ETA kya hai yaar",
+   "gold": [
+    {
+     "type": "query",
+     "topic": "eta"
+    }
+   ],
+   "got": [
+    {
+     "type": "query",
+     "topic": "tyres"
+    }
+   ]
+  },
+  {
+   "text": "Yaar bonnet kholo",
+   "gold": [],
+   "got": [
+    {
+     "type": "sunroof",
+     "open": true
+    }
+   ]
+  },
+  {
+   "text": "please ac ko thoda thanda karo na",
+   "gold": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": -1
+    }
+   ],
+   "got": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": 2,
+     "feeling": "cold"
+    }
+   ]
+  },
+  {
+   "text": "awaaz bahut tez hai na",
+   "gold": [
+    {
+     "type": "media.volume",
+     "delta": -8
+    }
+   ],
+   "got": [
+    {
+     "type": "media.volume",
+     "delta": 8
+    }
+   ]
+  },
+  {
+   "text": "itni cooling kyun hai, kaanp raha hoon abhi",
+   "gold": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": 2,
+     "feeling": "cold"
+    }
+   ],
+   "got": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": -2,
+     "feeling": "cold"
+    }
+   ]
+  },
+  {
+   "text": "Bahar ki hawa band karo aur ज़रा आवाज़ धीमी करो",
+   "gold": [
+    {
+     "type": "climate.recirc",
+     "on": true
+    },
+    {
+     "type": "media.volume",
+     "delta": -4
+    }
+   ],
+   "got": [
+    {
+     "type": "climate.fan",
+     "delta": -1
+    },
+    {
+     "type": "media.volume",
+     "delta": 4
+    }
+   ]
+  },
+  {
+   "text": "Listen, Paseena nikal raha hai bhai saath hi yaar, gPS mein India Gate daal do, listen, Agla track lagao jaldi",
+   "gold": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": -2,
+     "feeling": "hot"
+    },
+    {
+     "type": "nav.start",
+     "destination": "India Gate"
+    },
+    {
+     "type": "media.skip",
+     "dir": 1
+    }
+   ],
+   "got": [
+    {
+     "type": "doors.lock",
+     "locked": false
+    },
+    {
+     "type": "nav.start",
+     "destination": "India Gate"
+    },
+    {
+     "type": "media.skip",
+     "dir": 1
+    }
+   ]
+  },
+  {
+   "text": "Arre, Paseena nikal raha hai na aur saath mein airport tak petrol kitne ka lagega, andar 23 degree degree kar do",
+   "gold": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": -2,
+     "feeling": "hot"
+    },
+    {
+     "type": "query",
+     "topic": "fuel_cost",
+     "destination": "Airport"
+    },
+    {
+     "type": "climate.setTemp",
+     "value": 23
+    }
+   ],
+   "got": [
+    {
+     "type": "indicator",
+     "dir": "off"
+    },
+    {
+     "type": "query",
+     "topic": "fuel_cost",
+     "destination": "Airport"
+    },
+    {
+     "type": "climate.setTemp",
+     "value": 23
+    }
+   ]
+  },
+  {
+   "text": "सुनो, कूलिंग कम करो ज़रा",
+   "gold": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": 2
+    }
+   ],
+   "got": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": -2
+    }
+   ]
+  },
+  {
+   "text": "Window crack open karo apram AC konjam athigam pannu",
+   "gold": [
+    {
+     "type": "window",
+     "target": "driver",
+     "open": 40
+    },
+    {
+     "type": "climate.adjustTemp",
+     "delta": 1
+    }
+   ],
+   "got": [
+    {
+     "type": "window",
+     "target": "driver",
+     "open": 100
+    },
+    {
+     "type": "climate.adjustTemp",
+     "delta": 1
+    }
+   ]
+  },
+  {
+   "text": "गाड़ी का तापमान थोड़ा घटा दो। fir taapmaan baais karo aur saath mein yaar lofi chalao plus fan ko full kar do abhi",
+   "gold": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": -2
+    },
+    {
+     "type": "climate.setTemp",
+     "value": 22
+    },
+    {
+     "type": "media.play",
+     "genre": "lofi",
+     "radio": false
+    },
+    {
+     "type": "climate.fan",
+     "delta": 3
+    }
+   ],
+   "got": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": -1
+    },
+    {
+     "type": "climate.setTemp",
+     "value": 22
+    },
+    {
+     "type": "media.play",
+     "genre": "lofi",
+     "radio": false
+    },
+    {
+     "type": "climate.fan",
+     "delta": 3
+    }
+   ]
+  },
+  {
+   "text": "Vroom vroom and please make it slightly warmer",
+   "gold": [
+    {
+     "type": "rev"
+    },
+    {
+     "type": "climate.adjustTemp",
+     "delta": 1
+    }
+   ],
+   "got": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": 2
+    }
+   ]
+  },
+  {
+   "text": "Fan bahut shor kar raha hai, kam karo aur fir turn off lane keeping yaar",
+   "gold": [
+    {
+     "type": "climate.fan",
+     "delta": -3
+    },
+    {
+     "type": "adas.lka",
+     "on": false
+    }
+   ],
+   "got": [
+    {
+     "type": "climate.fan",
+     "delta": -1
+    },
+    {
+     "type": "climate.fan",
+     "delta": -1
+    },
+    {
+     "type": "adas.lka",
+     "on": false
+    }
+   ]
+  },
+  {
+   "text": "okay, awaaz thodi tez kar do na",
+   "gold": [
+    {
+     "type": "media.volume",
+     "delta": 2
+    }
+   ],
+   "got": [
+    {
+     "type": "media.volume",
+     "delta": 4
+    }
+   ]
+  },
+  {
+   "text": "fan ko full kar do jaldi phir verna fog wala band kar do yaar saath hi go back a track bhai",
+   "gold": [
+    {
+     "type": "climate.fan",
+     "delta": 3
+    },
+    {
+     "type": "climate.defrost",
+     "on": false
+    },
+    {
+     "type": "media.skip",
+     "dir": -1
+    }
+   ],
+   "got": [
+    {
+     "type": "climate.fan",
+     "delta": 3
+    },
+    {
+     "type": "climate.defrost",
+     "on": false
+    },
+    {
+     "type": "media.skip",
+     "dir": 1
+    }
+   ]
+  },
+  {
+   "text": "Bhai, freeze the music for a second yaar saath hi thoda sukoon chahiye",
+   "gold": [
+    {
+     "type": "media.pause"
+    },
+    {
+     "type": "mood",
+     "mood": "relax"
+    }
+   ],
+   "got": [
+    {
+     "type": "media.pause"
+    },
+    {
+     "type": "climate.adjustTemp",
+     "delta": -1
+    }
+   ]
+  },
+  {
+   "text": "Listen, The volume is too high now",
+   "gold": [
+    {
+     "type": "media.volume",
+     "delta": -4
+    }
+   ],
+   "got": [
+    {
+     "type": "media.volume",
+     "delta": 4
+    }
+   ]
+  },
+  {
+   "text": "I'm feeling sleepy",
+   "gold": [
+    {
+     "type": "mood",
+     "mood": "energy"
+    }
+   ],
+   "got": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": -2,
+     "feeling": "hot"
+    }
+   ]
+  },
+  {
+   "text": "yaar ac kitne pe hai please",
+   "gold": [
+    {
+     "type": "query",
+     "topic": "temp"
+    }
+   ],
+   "got": []
+  },
+  {
+   "text": "Feels like a sauna in here.",
+   "gold": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": -2,
+     "feeling": "hot"
+    }
+   ],
+   "got": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": 2,
+     "feeling": "cold"
+    }
+   ]
+  },
+  {
+   "text": "Okay, Itni cooling kyun hai, kaanp raha hoon",
+   "gold": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": 2,
+     "feeling": "cold"
+    }
+   ],
+   "got": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": -2,
+     "feeling": "hot"
+    }
+   ]
+  },
+  {
+   "text": "hey daftar kitni door hai aur toll kitna lagega.",
+   "gold": [
+    {
+     "type": "query",
+     "topic": "distance",
+     "destination": "Office"
+    },
+    {
+     "type": "query",
+     "topic": "toll",
+     "destination": "Office"
+    }
+   ],
+   "got": [
+    {
+     "type": "query",
+     "topic": "distance",
+     "destination": "Office"
+    },
+    {
+     "type": "query",
+     "topic": "toll"
+    }
+   ]
+  },
+  {
+   "text": "Switch the aircon off please, bahar ki hawa band karo",
+   "gold": [
+    {
+     "type": "climate.power",
+     "on": false
+    },
+    {
+     "type": "climate.recirc",
+     "on": true
+    }
+   ],
+   "got": [
+    {
+     "type": "climate.power",
+     "on": false
+    },
+    {
+     "type": "climate.recirc",
+     "on": false
+    }
+   ]
+  },
+  {
+   "text": "ज़रा पहले वाला गाना लगाओ",
+   "gold": [
+    {
+     "type": "media.skip",
+     "dir": -1
+    }
+   ],
+   "got": [
+    {
+     "type": "media.skip",
+     "dir": 1
+    }
+   ]
+  },
+  {
+   "text": "kuch dhoondhna hai andar light karo",
+   "gold": [
+    {
+     "type": "lights.cabin",
+     "on": true
+    }
+   ],
+   "got": [
+    {
+     "type": "lights.cabin",
+     "on": false
+    }
+   ]
+  },
+  {
+   "text": "okay, cabin chill ho gaya hai garam karo",
+   "gold": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": 2
+    }
+   ],
+   "got": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": -2
+    }
+   ]
+  },
+  {
+   "text": "Please pankha 6 pe kar do na",
+   "gold": [
+    {
+     "type": "climate.fan",
+     "value": 6
+    }
+   ],
+   "got": []
+  },
+  {
+   "text": "Itni cooling kyun hai, kaanp raha hoon fir bhai, cabin pachchis degree set karo jaldi",
+   "gold": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": 2,
+     "feeling": "cold"
+    },
+    {
+     "type": "climate.setTemp",
+     "value": 25
+    }
+   ],
+   "got": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": -2,
+     "feeling": "cold"
+    },
+    {
+     "type": "climate.setTemp",
+     "value": 25
+    }
+   ]
+  },
+  {
+   "text": "Turn it up a bit",
+   "gold": [],
+   "got": [
+    {
+     "type": "media.volume",
+     "delta": 4
+    }
+   ]
+  },
+  {
+   "text": "अगला गाना चलाओ।, please light dhadakti hui karo",
+   "gold": [
+    {
+     "type": "media.skip",
+     "dir": 1
+    },
+    {
+     "type": "ambient.mode",
+     "mode": "breathe"
+    }
+   ],
+   "got": [
+    {
+     "type": "media.skip",
+     "dir": 1
+    },
+    {
+     "type": "ambient.color",
+     "color": "yellow"
+    }
+   ]
+  },
+  {
+   "text": "arre, blow more air also thoda sukoon chahiye apram please adjust climate to 26 degrees",
+   "gold": [
+    {
+     "type": "climate.fan",
+     "delta": 1
+    },
+    {
+     "type": "mood",
+     "mood": "relax"
+    },
+    {
+     "type": "climate.setTemp",
+     "value": 26
+    }
+   ],
+   "got": [
+    {
+     "type": "climate.fan",
+     "delta": 1
+    },
+    {
+     "type": "climate.adjustTemp",
+     "delta": -1
+    },
+    {
+     "type": "climate.setTemp",
+     "value": 26
+    }
+   ]
+  },
+  {
+   "text": "aaj traffic bahut tha yaar jaldi",
+   "gold": [],
+   "got": [
+    {
+     "type": "lights.head",
+     "on": true
+    }
+   ]
+  },
+  {
+   "text": "please petrol bachao phir cancel cruise control",
+   "gold": [
+    {
+     "type": "drive.mode",
+     "mode": "eco"
+    },
+    {
+     "type": "cruise",
+     "on": false
+    }
+   ],
+   "got": [
+    {
+     "type": "query",
+     "topic": "fuel_cost"
+    },
+    {
+     "type": "cruise",
+     "on": true
+    }
+   ]
+  },
+  {
+   "text": "Child lock lagao",
+   "gold": [],
+   "got": [
+    {
+     "type": "doors.lock",
+     "locked": true
+    }
+   ]
+  },
+  {
+   "text": "Garmi se jaan nikal rahi hai aur hey, adjust climate to 18 degrees celsius aur chup karao isko",
+   "gold": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": -2,
+     "feeling": "hot"
+    },
+    {
+     "type": "climate.setTemp",
+     "value": 18
+    },
+    {
+     "type": "media.pause"
+    }
+   ],
+   "got": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": -2,
+     "feeling": "hot"
+    },
+    {
+     "type": "climate.setTemp",
+     "value": 18
+    },
+    {
+     "type": "greet"
+    }
+   ]
+  },
+  {
+   "text": "Bhai, The volume is too high na, too warm for me saath hi bahar ki hawa band karo na",
+   "gold": [
+    {
+     "type": "media.volume",
+     "delta": -4
+    },
+    {
+     "type": "climate.adjustTemp",
+     "delta": -2,
+     "feeling": "hot"
+    },
+    {
+     "type": "climate.recirc",
+     "on": true
+    }
+   ],
+   "got": [
+    {
+     "type": "media.volume",
+     "delta": 4
+    },
+    {
+     "type": "climate.recirc",
+     "on": false
+    }
+   ]
+  },
+  {
+   "text": "Yaar, Awaaz bahut dheemi hai please phir rainbow light chalao then bahut sardi lag rahi hai",
+   "gold": [
+    {
+     "type": "media.volume",
+     "delta": 8
+    },
+    {
+     "type": "ambient.mode",
+     "mode": "rainbow"
+    },
+    {
+     "type": "climate.adjustTemp",
+     "delta": 2,
+     "feeling": "cold"
+    }
+   ],
+   "got": [
+    {
+     "type": "media.volume",
+     "delta": -4
+    },
+    {
+     "type": "climate.adjustTemp",
+     "delta": 2,
+     "feeling": "cold"
+    }
+   ]
+  },
+  {
+   "text": "Child lock lagao.",
+   "gold": [],
+   "got": [
+    {
+     "type": "doors.lock",
+     "locked": true
+    }
+   ]
+  },
+  {
+   "text": "the airport ka navigation lagao na yaar and sheesha pochho yaar",
+   "gold": [
+    {
+     "type": "nav.start",
+     "destination": "The Airport"
+    },
+    {
+     "type": "wipers",
+     "mode": "slow"
+    }
+   ],
+   "got": [
+    {
+     "type": "nav.start",
+     "destination": "The Airport"
+    },
+    {
+     "type": "climate.fan",
+     "delta": -1
+    }
+   ]
+  },
+  {
+   "text": "baarish ruk gayi.",
+   "gold": [
+    {
+     "type": "wipers",
+     "mode": "off"
+    }
+   ],
+   "got": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": -2
+    }
+   ]
+  },
+  {
+   "text": "please it feels like an oven in the car bhai apram hey what song is this",
+   "gold": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": -2,
+     "feeling": "hot"
+    },
+    {
+     "type": "query",
+     "topic": "music"
+    }
+   ],
+   "got": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": 2,
+     "feeling": "cold"
+    },
+    {
+     "type": "query",
+     "topic": "music"
+    }
+   ]
+  },
+  {
+   "text": "arre, heater on karke garam kar do yaar",
+   "gold": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": 2
+    }
+   ],
+   "got": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": 1
+    }
+   ]
+  },
+  {
+   "text": "arre, it's too noisy with this music bhai",
+   "gold": [
+    {
+     "type": "media.volume",
+     "delta": -4
+    }
+   ],
+   "got": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": -2,
+     "feeling": "hot"
+    },
+    {
+     "type": "media.volume",
+     "delta": -4
+    }
+   ]
+  },
+  {
+   "text": "Verna bonnet kholo",
+   "gold": [],
+   "got": [
+    {
+     "type": "sunroof",
+     "open": true
+    }
+   ]
+  },
+  {
+   "text": "Hi there and the airport ka navigation lagao na yaar",
+   "gold": [
+    {
+     "type": "greet"
+    },
+    {
+     "type": "nav.start",
+     "destination": "The Airport"
+    }
+   ],
+   "got": [
+    {
+     "type": "nav.start",
+     "destination": "The Airport"
+    }
+   ]
+  },
+  {
+   "text": "yaar aage kuch nahi dikh raha andhere mein phir AC chalu kar dijiye fir saari khidkiyan band",
+   "gold": [
+    {
+     "type": "lights.head",
+     "on": true
+    },
+    {
+     "type": "climate.power",
+     "on": true
+    },
+    {
+     "type": "window",
+     "target": "both",
+     "open": 0
+    }
+   ],
+   "got": [
+    {
+     "type": "climate.defrost",
+     "on": true
+    },
+    {
+     "type": "climate.power",
+     "on": true
+    },
+    {
+     "type": "window",
+     "target": "both",
+     "open": 0
+    }
+   ]
+  },
+  {
+   "text": "Listen, Paseena nikal raha hai bhai fir previous wala track lagao",
+   "gold": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": -2,
+     "feeling": "hot"
+    },
+    {
+     "type": "media.skip",
+     "dir": -1
+    }
+   ],
+   "got": [
+    {
+     "type": "indicator",
+     "dir": "off"
+    },
+    {
+     "type": "media.skip",
+     "dir": -1
+    }
+   ]
+  },
+  {
+   "text": "Sound full kar do.",
+   "gold": [
+    {
+     "type": "media.volume",
+     "delta": 8
+    }
+   ],
+   "got": [
+    {
+     "type": "media.volume",
+     "delta": 3
+    }
+   ]
+  },
+  {
+   "text": "Thoda sukoon chahiye tarpor lofi chalao",
+   "gold": [
+    {
+     "type": "mood",
+     "mood": "relax"
+    },
+    {
+     "type": "media.play",
+     "genre": "lofi",
+     "radio": false
+    }
+   ],
+   "got": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": -1
+    },
+    {
+     "type": "media.play",
+     "genre": "lofi",
+     "radio": false
+    }
+   ]
+  },
+  {
+   "text": "Andar 24 degree degree kar do tarpor hauz khas niye chalo also rasta mat dikhao ab",
+   "gold": [
+    {
+     "type": "climate.setTemp",
+     "value": 24
+    },
+    {
+     "type": "nav.start",
+     "destination": "Hauz Khas"
+    },
+    {
+     "type": "nav.stop"
+    }
+   ],
+   "got": [
+    {
+     "type": "climate.setTemp",
+     "value": 24
+    },
+    {
+     "type": "nav.start",
+     "destination": "Hauz Khas"
+    },
+    {
+     "type": "screen",
+     "page": "nav"
+    }
+   ]
+  },
+  {
+   "text": "Warm me up, it's icy.",
+   "gold": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": 2
+    }
+   ],
+   "got": [
+    {
+     "type": "climate.adjustTemp",
+     "delta": 1
+    },
+    {
+     "type": "climate.adjustTemp",
+     "delta": 2,
+     "feeling": "cold"
+    }
+   ]
+  },
+  {
+   "text": "Brake hold on aur fir hey thanks Verna",
+   "gold": [
+    {
+     "type": "autohold",
+     "on": true
+    },
+    {
+     "type": "thanks"
+    }
+   ],
+   "got": [
+    {
+     "type": "thanks"
+    }
+   ]
+  },
+  {
+   "text": "lofi chalao.",
+   "gold": [
+    {
+     "type": "media.play",
+     "genre": "lofi",
+     "radio": false
+    }
+   ],
+   "got": [
+    {
+     "type": "ambient.color",
+     "color": "purple"
+    }
+   ]
+  },
+  {
+   "text": "brake hold on",
+   "gold": [
+    {
+     "type": "autohold",
+     "on": true
+    }
+   ],
+   "got": []
+  },
+  {
+   "text": "Tyre pressure kitna hai",
+   "gold": [
+    {
+     "type": "query",
+     "topic": "tyres"
+    }
+   ],
+   "got": []
+  },
+  {
+   "text": "bhai, pause the playback for a minute yaar and petrol kitna hai then set light colour number 41 jaldi",
+   "gold": [
+    {
+     "type": "media.pause"
+    },
+    {
+     "type": "query",
+     "topic": "fuel"
+    },
+    {
+     "type": "ambient.hue",
+     "hue": 40
+    }
+   ],
+   "got": [
+    {
+     "type": "media.pause"
+    },
+    {
+     "type": "query",
+     "topic": "fuel_cost"
+    },
+    {
+     "type": "ambient.color",
+     "color": "yellow"
+    }
+   ]
+  },
+  {
+   "text": "ज़रा पहले वाला गाना लगाओ भाई phir volume beshi koro aur fir verna AC automatic kar do",
+   "gold": [
+    {
+     "type": "media.skip",
+     "dir": -1
+    },
+    {
+     "type": "media.volume",
+     "delta": 4
+    },
+    {
+     "type": "climate.auto"
+    }
+   ],
+   "got": [
+    {
+     "type": "media.skip",
+     "dir": 1
+    },
+    {
+     "type": "media.volume",
+     "delta": 4
+    },
+    {
+     "type": "climate.auto"
+    }
+   ]
+  },
+  {
+   "text": "please blow more air yaar, bhai, cabin chill ho gaya hai garam karo na aar arre, AC start karo jaldi",
+   "gold": [
+    {
+     "type": "climate.fan",
+     "delta": 1
+    },
+    {
+     "type": "climate.adjustTemp",
+     "delta": 2
+    },
+    {
+     "type": "climate.power",
+     "on": true
+    }
+   ],
+   "got": [
+    {
+     "type": "climate.fan",
+     "delta": 1
+    },
+    {
+     "type": "climate.adjustTemp",
+     "delta": -2
+    },
+    {
+     "type": "climate.power",
+     "on": true
+    }
+   ]
+  }
+ ]
+}

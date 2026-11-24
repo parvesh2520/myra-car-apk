@@ -1,0 +1,114 @@
+{
+  "minilm-ft": {
+    "encoder": "paraphrase-multilingual-MiniLM-L12-v2",
+    "output": "models\\finetuned\\minilm-ft",
+    "epochs": 8,
+    "lr": 4e-05,
+    "batch": 16,
+    "seed": 7,
+    "frozen": "word embeddings",
+    "best_epoch": 5,
+    "best_val_macro_f1": 0.8381,
+    "history": [
+      {
+        "epoch": 1,
+        "val_macro_f1": 0.6215,
+        "elapsed_s": 45.3
+      },
+      {
+        "epoch": 2,
+        "val_macro_f1": 0.7871,
+        "elapsed_s": 96.1
+      },
+      {
+        "epoch": 3,
+        "val_macro_f1": 0.8282,
+        "elapsed_s": 147.2
+      },
+      {
+        "epoch": 4,
+        "val_macro_f1": 0.8022,
+        "elapsed_s": 187.8
+      },
+      {
+        "epoch": 5,
+        "val_macro_f1": 0.8381,
+        "elapsed_s": 225.7
+      },
+      {
+        "epoch": 6,
+        "val_macro_f1": 0.8248,
+        "elapsed_s": 265.2
+      },
+      {
+        "epoch": 7,
+        "val_macro_f1": 0.831,
+        "elapsed_s": 303.4
+      },
+      {
+        "epoch": 8,
+        "val_macro_f1": 0.8348,
+        "elapsed_s": 366.9
+      }
+    ],
+    "train_size": 3027,
+    "train_time_s": 366.9,
+    "note": "Fine-tuned on SYNTHETIC labelled text only; validation used for epoch selection."
+  },
+  "e5-ft": {
+    "encoder": "multilingual-e5-small",
+    "output": "models\\finetuned\\e5-ft",
+    "epochs": 8,
+    "lr": 4e-05,
+    "batch": 16,
+    "seed": 7,
+    "frozen": "word embeddings",
+    "best_epoch": 3,
+    "best_val_macro_f1": 0.7937,
+    "history": [
+      {
+        "epoch": 1,
+        "val_macro_f1": 0.7278,
+        "elapsed_s": 110.2
+      },
+      {
+        "epoch": 2,
+        "val_macro_f1": 0.7508,
+        "elapsed_s": 220.8
+      },
+      {
+        "epoch": 3,
+        "val_macro_f1": 0.7937,
+        "elapsed_s": 331.5
+      },
+      {
+        "epoch": 4,
+        "val_macro_f1": 0.7818,
+        "elapsed_s": 555.2
+      },
+      {
+        "epoch": 5,
+        "val_macro_f1": 0.77,
+        "elapsed_s": 800.5
+      },
+      {
+        "epoch": 6,
+        "val_macro_f1": 0.7811,
+        "elapsed_s": 910.5
+      },
+      {
+        "epoch": 7,
+        "val_macro_f1": 0.7777,
+        "elapsed_s": 1020.9
+      },
+      {
+        "epoch": 8,
+        "val_macro_f1": 0.7771,
+        "elapsed_s": 1129.4
+      }
+    ],
+    "train_size": 6266,
+    "train_time_s": 1129.4,
+    "note": "Fine-tuned on SYNTHETIC labelled text only; validation used for epoch selection."
+  }
+}

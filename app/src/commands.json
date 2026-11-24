@@ -1,0 +1,911 @@
+{
+ "capabilities": "- climate.setTemp(value: 16..30)\n- climate.adjustTemp(delta: -3..3, feeling?: ['hot', 'cold'])\n- climate.power(on: boolean)\n- climate.fan(value?: 0..7, delta?: -3..3)\n- climate.auto()\n- climate.recirc(on?: boolean)\n- climate.defrost(on?: boolean)\n- media.play(genre?: ['lofi', 'romantic', 'party', 'devotional', 'retro'], radio?: boolean, freq?: 87.5..108)\n- media.pause()\n- media.skip(dir: [1, -1])\n- media.volume(value?: 0..30, delta?: -8..8, mute?: boolean)\n- ambient.color(color: ['blue', 'red', 'green', 'purple', 'pink', 'orange', 'white', 'yellow', 'cyan', 'gold'])\n- ambient.power(on: boolean)\n- ambient.brightness(delta: -0.4..0.4)\n- ambient.mode(mode: ['static', 'breathe', 'flow', 'music', 'drive', 'rainbow', 'dual'], color2?: ['blue', 'red', 'green', 'purple', 'pink', 'orange', 'white', 'yellow', 'cyan', 'gold'])\n- ambient.hue(hue: 0..63)\n- mood(mood: ['party', 'relax', 'romantic', 'focus', 'energy', 'cozy'])\n- wipers(mode: ['off', 'slow', 'fast'], rain?: boolean)\n- window(target: ['driver', 'passenger', 'both'], open: 0..100)\n- sunroof(open: boolean, fresh?: boolean)\n- seat.vent(target: ['driver', 'passenger', 'both'], level?: 0..3, delta?: -3..3)\n- nav.start(destination: string)\n- nav.stop()\n- profile(id?: string)\n- phone.call(contact: string)\n- phone.end()\n- drive.mode(mode: ['eco', 'normal', 'sport'])\n- lights.head(on: boolean)\n- lights.hazard(on: boolean)\n- ignition(mode: ['off', 'acc', 'on'])\n- rev()\n- gear(gear: ['P', 'R', 'N', 'D'])\n- indicator(dir: ['off', 'left', 'right'])\n- lights.cabin(on: boolean)\n- doors.lock(locked: boolean)\n- autohold(on?: boolean)\n- screen(page: ['home', 'nav', 'media', 'climate', 'lights', 'phone', 'vehicle'])\n- cluster.view(view?: ['drive', 'trip', 'tyres'], dir?: [1, -1])\n- adas.lka(on: boolean)\n- cruise(on: boolean, speed?: 30..180, delta?: -20..20)\n- query(topic: ['temp', 'fuel', 'music', 'time', 'speed', 'tyres', 'eta', 'distance', 'toll', 'fuel_cost'], destination?: string)\n- greet()\n- help()\n- thanks()\n- shortcut.create(trigger: string)\n- shortcut.delete(trigger: string)\n- shortcut.list()",
+ "schema": {
+  "type": "array",
+  "items": {
+   "oneOf": [
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "climate.setTemp"
+      },
+      "value": {
+       "type": "number",
+       "minimum": 16,
+       "maximum": 30
+      }
+     },
+     "required": [
+      "type",
+      "value"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "climate.adjustTemp"
+      },
+      "delta": {
+       "type": "integer",
+       "minimum": -3,
+       "maximum": 3
+      },
+      "feeling": {
+       "enum": [
+        "hot",
+        "cold"
+       ]
+      }
+     },
+     "required": [
+      "type",
+      "delta"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "climate.power"
+      },
+      "on": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "type",
+      "on"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "climate.fan"
+      },
+      "value": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 7
+      },
+      "delta": {
+       "type": "integer",
+       "minimum": -3,
+       "maximum": 3
+      }
+     },
+     "required": [
+      "type"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "climate.auto"
+      }
+     },
+     "required": [
+      "type"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "climate.recirc"
+      },
+      "on": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "type"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "climate.defrost"
+      },
+      "on": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "type"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "media.play"
+      },
+      "genre": {
+       "enum": [
+        "lofi",
+        "romantic",
+        "party",
+        "devotional",
+        "retro"
+       ]
+      },
+      "radio": {
+       "type": "boolean"
+      },
+      "freq": {
+       "type": "number",
+       "minimum": 87.5,
+       "maximum": 108
+      }
+     },
+     "required": [
+      "type"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "media.pause"
+      }
+     },
+     "required": [
+      "type"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "media.skip"
+      },
+      "dir": {
+       "enum": [
+        1,
+        -1
+       ]
+      }
+     },
+     "required": [
+      "type",
+      "dir"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "media.volume"
+      },
+      "value": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 30
+      },
+      "delta": {
+       "type": "integer",
+       "minimum": -8,
+       "maximum": 8
+      },
+      "mute": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "type"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "ambient.color"
+      },
+      "color": {
+       "enum": [
+        "blue",
+        "red",
+        "green",
+        "purple",
+        "pink",
+        "orange",
+        "white",
+        "yellow",
+        "cyan",
+        "gold"
+       ]
+      }
+     },
+     "required": [
+      "type",
+      "color"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "ambient.power"
+      },
+      "on": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "type",
+      "on"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "ambient.brightness"
+      },
+      "delta": {
+       "type": "number",
+       "minimum": -0.4,
+       "maximum": 0.4
+      }
+     },
+     "required": [
+      "type",
+      "delta"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "ambient.mode"
+      },
+      "mode": {
+       "enum": [
+        "static",
+        "breathe",
+        "flow",
+        "music",
+        "drive",
+        "rainbow",
+        "dual"
+       ]
+      },
+      "color2": {
+       "enum": [
+        "blue",
+        "red",
+        "green",
+        "purple",
+        "pink",
+        "orange",
+        "white",
+        "yellow",
+        "cyan",
+        "gold"
+       ]
+      }
+     },
+     "required": [
+      "type",
+      "mode"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "ambient.hue"
+      },
+      "hue": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 63
+      }
+     },
+     "required": [
+      "type",
+      "hue"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "mood"
+      },
+      "mood": {
+       "enum": [
+        "party",
+        "relax",
+        "romantic",
+        "focus",
+        "energy",
+        "cozy"
+       ]
+      }
+     },
+     "required": [
+      "type",
+      "mood"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "wipers"
+      },
+      "mode": {
+       "enum": [
+        "off",
+        "slow",
+        "fast"
+       ]
+      },
+      "rain": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "type",
+      "mode"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "window"
+      },
+      "target": {
+       "enum": [
+        "driver",
+        "passenger",
+        "both"
+       ]
+      },
+      "open": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 100
+      }
+     },
+     "required": [
+      "type",
+      "target",
+      "open"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "sunroof"
+      },
+      "open": {
+       "type": "boolean"
+      },
+      "fresh": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "type",
+      "open"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "seat.vent"
+      },
+      "target": {
+       "enum": [
+        "driver",
+        "passenger",
+        "both"
+       ]
+      },
+      "level": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 3
+      },
+      "delta": {
+       "type": "integer",
+       "minimum": -3,
+       "maximum": 3
+      }
+     },
+     "required": [
+      "type",
+      "target"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "nav.start"
+      },
+      "destination": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 60
+      }
+     },
+     "required": [
+      "type",
+      "destination"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "nav.stop"
+      }
+     },
+     "required": [
+      "type"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "profile"
+      },
+      "id": {
+       "type": "string",
+       "minLength": 1
+      }
+     },
+     "required": [
+      "type"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "phone.call"
+      },
+      "contact": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 40
+      }
+     },
+     "required": [
+      "type",
+      "contact"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "phone.end"
+      }
+     },
+     "required": [
+      "type"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "drive.mode"
+      },
+      "mode": {
+       "enum": [
+        "eco",
+        "normal",
+        "sport"
+       ]
+      }
+     },
+     "required": [
+      "type",
+      "mode"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "lights.head"
+      },
+      "on": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "type",
+      "on"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "lights.hazard"
+      },
+      "on": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "type",
+      "on"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "ignition"
+      },
+      "mode": {
+       "enum": [
+        "off",
+        "acc",
+        "on"
+       ]
+      }
+     },
+     "required": [
+      "type",
+      "mode"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "rev"
+      }
+     },
+     "required": [
+      "type"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "gear"
+      },
+      "gear": {
+       "enum": [
+        "P",
+        "R",
+        "N",
+        "D"
+       ]
+      }
+     },
+     "required": [
+      "type",
+      "gear"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "indicator"
+      },
+      "dir": {
+       "enum": [
+        "off",
+        "left",
+        "right"
+       ]
+      }
+     },
+     "required": [
+      "type",
+      "dir"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "lights.cabin"
+      },
+      "on": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "type",
+      "on"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "doors.lock"
+      },
+      "locked": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "type",
+      "locked"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "autohold"
+      },
+      "on": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "type"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "screen"
+      },
+      "page": {
+       "enum": [
+        "home",
+        "nav",
+        "media",
+        "climate",
+        "lights",
+        "phone",
+        "vehicle"
+       ]
+      }
+     },
+     "required": [
+      "type",
+      "page"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "cluster.view"
+      },
+      "view": {
+       "enum": [
+        "drive",
+        "trip",
+        "tyres"
+       ]
+      },
+      "dir": {
+       "enum": [
+        1,
+        -1
+       ]
+      }
+     },
+     "required": [
+      "type"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "adas.lka"
+      },
+      "on": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "type",
+      "on"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "cruise"
+      },
+      "on": {
+       "type": "boolean"
+      },
+      "speed": {
+       "type": "integer",
+       "minimum": 30,
+       "maximum": 180
+      },
+      "delta": {
+       "type": "integer",
+       "minimum": -20,
+       "maximum": 20
+      }
+     },
+     "required": [
+      "type",
+      "on"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "query"
+      },
+      "topic": {
+       "enum": [
+        "temp",
+        "fuel",
+        "music",
+        "time",
+        "speed",
+        "tyres",
+        "eta",
+        "distance",
+        "toll",
+        "fuel_cost"
+       ]
+      },
+      "destination": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 60
+      }
+     },
+     "required": [
+      "type",
+      "topic"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "greet"
+      }
+     },
+     "required": [
+      "type"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "help"
+      }
+     },
+     "required": [
+      "type"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "thanks"
+      }
+     },
+     "required": [
+      "type"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "shortcut.create"
+      },
+      "trigger": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 60
+      }
+     },
+     "required": [
+      "type",
+      "trigger"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "shortcut.delete"
+      },
+      "trigger": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 60
+      }
+     },
+     "required": [
+      "type",
+      "trigger"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "const": "shortcut.list"
+      }
+     },
+     "required": [
+      "type"
+     ],
+     "additionalProperties": false
+    }
+   ]
+  },
+  "maxItems": 4
+ }
+}

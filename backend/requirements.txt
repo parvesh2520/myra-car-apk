@@ -1,0 +1,31 @@
+# ---- V2 runtime (all inference local; no LLM, no cloud) ----
+onnxruntime==1.31.0          # ASR (Whisper ONNX exports) and sentence-encoder inference (INT8)
+sherpa-onnx==1.13.8          # ASR and CAM++ speaker embeddings
+tokenizers                   # Rust tokenizer for the encoder (installed with transformers)
+numpy>=2.0.0
+pydantic==2.14.1
+soundfile==0.14.0
+sounddevice==0.5.6
+psutil==7.2.2
+python-dotenv==1.2.4
+rapidfuzz==3.14.6            # phonetic candidate retrieval (post-ASR rescorer, domain snapping)
+llama-cpp-python==0.3.19       # command LLM runtime (CPU wheels: --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu)
+google-cloud-translate==3.28.0    # BharatConnect: Cloud Translation v3 (credentials via GOOGLE_APPLICATION_CREDENTIALS)
+google-cloud-texttospeech==2.38.0 # BharatConnect: spoken translations (ta-IN, hi-IN, en-IN)
+huggingface_hub              # one-time model download only (scripts/download_models.py)
+# Local API / test page
+fastapi==0.143.3
+uvicorn==0.54.0
+python-multipart
+httpx==0.28.1
+# ---- Training, export and evaluation (development machine only) ----
+torch==2.14.1
+transformers==5.20.1
+sentence-transformers==6.1.0
+scikit-learn==1.9.1
+onnx==1.23.2
+# ---- Tests ----
+pytest==9.1.1
+# ---- Optional V1 development benchmark (Whisper + Ollama/Qwen), not used by the V2 runtime ----
+faster-whisper==1.2.1
+ctranslate2==4.8.3

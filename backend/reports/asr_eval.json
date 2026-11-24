@@ -1,0 +1,1812 @@
+{
+ "hardware": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel | 20 logical CPUs | 15.8 GiB | Windows-10-10.0.26300-SP0",
+ "threads": 4,
+ "n_items": 36,
+ "provenance": [
+  "synthetic_tts_windows_onecore"
+ ],
+ "metric": "WER/CER vs Romanized reference after lower-casing and punctuation removal",
+ "models": {
+  "swift": {
+   "load_s": 1.16,
+   "peak_rss_mb": 590.6,
+   "model_files_mb": 153.3,
+   "conditions": {
+    "clean": {
+     "n": 36,
+     "wer": 0.3714,
+     "cer": 0.1852,
+     "wer_by_language": {
+      "english": 0.2526,
+      "hinglish": 0.5091,
+      "romanized_hindi": 0.52
+     },
+     "latency_s_median": 0.428,
+     "latency_s_p95": 0.899,
+     "rtf_median": 0.188,
+     "end_to_end_intent_accuracy": 0.72,
+     "end_to_end_n": 25,
+     "transcripts": [
+      [
+       "v01_en_freezing",
+       "I am freezing in here.",
+       [
+        "I am freezing in here."
+       ]
+      ],
+      [
+       "v02_en_cabin_warmer",
+       "Make the cabin a little warmer.",
+       [
+        "Make the cabin a little warmer."
+       ]
+      ],
+      [
+       "v03_en_set_23",
+       "Set the cabin to 23 degrees.",
+       [
+        "Set the cabin to 23 degrees."
+       ]
+      ],
+      [
+       "v04_en_volume_down",
+       "Bring the volume down.",
+       [
+        "Bring the volume down."
+       ]
+      ],
+      [
+       "v05_en_next",
+       "Skip to the next 1.",
+       [
+        "Skip to the next 1.",
+        "Skept to the next 1."
+       ]
+      ],
+      [
+       "v06_en_nav",
+       "Navgadh to India gai.",
+       [
+        "Navgadh to India gai.",
+        "Navgate to India gate."
+       ]
+      ],
+      [
+       "v07_en_neg_ac",
+       "Don't turn your seat off.",
+       [
+        "Don't turn your seat off."
+       ]
+      ],
+      [
+       "v08_en_ood",
+       "Lock the car.",
+       [
+        "Lock the car."
+       ]
+      ],
+      [
+       "v09_en_pause",
+       "Positive for a second.",
+       [
+        "Positive for a second."
+       ]
+      ],
+      [
+       "v10_en_fan_down",
+       "Chon down double",
+       [
+        "Chon down double"
+       ]
+      ],
+      [
+       "v11_hg_ac_warm",
+       "Y AC toda warm kar do.",
+       [
+        "Y AC toda warm kar do."
+       ]
+      ],
+      [
+       "v12_hg_fan_kam",
+       "Fang ki speed thodi kam karjoon.",
+       [
+        "Fang ki speed thodi kam karjoon.",
+        "Fang ki speed thodi kam karjoo."
+       ]
+      ],
+      [
+       "v13_hg_volume",
+       "Volume bada do yaar.",
+       [
+        "Volume bada do yaar."
+       ]
+      ],
+      [
+       "v14_hg_set_22",
+       "AC 22 p ka jooyaar.",
+       [
+        "AC 22 p ka jooyaar.",
+        "AC 22 p ka juyaar."
+       ]
+      ],
+      [
+       "v15_hg_nav",
+       "Jhoo beach tak le chalo.",
+       [
+        "Jhoo beach tak le chalo.",
+        "Juboo beach tak le chalo."
+       ]
+      ],
+      [
+       "v16_hg_pause",
+       "Music copors ka joo.",
+       [
+        "Music copors ka joo.",
+        "Music copors kaajoo."
+       ]
+      ],
+      [
+       "v17_hg_neg",
+       "Volume mat batao.",
+       [
+        "Volume mat batao."
+       ]
+      ],
+      [
+       "v18_hg_climate_on",
+       "Flipnit onker Dubai",
+       [
+        "Flipnit onker Dubai",
+        "Flime made onker Dubai."
+       ]
+      ],
+      [
+       "v19_rh_garmi",
+       "Gaami se jaan nikaal rahi hai.",
+       [
+        "Gaami se jaan nikaal rahi hai."
+       ]
+      ],
+      [
+       "v20_rh_agla",
+       "At the gaanv lagao.",
+       [
+        "At the gaanv lagao.",
+        "At the corner lagao."
+       ]
+      ],
+      [
+       "v21_rh_awaaz",
+       "Aavaaz thodi dhimi kar do.",
+       [
+        "Aavaaz thodi dhimi kar do."
+       ]
+      ],
+      [
+       "v22_rh_saket",
+       "Moveli sake jaana hai.",
+       [
+        "Moveli sake jaana hai."
+       ]
+      ],
+      [
+       "v23_rh_gaana",
+       "Gaana shuroo karo.",
+       [
+        "Gaana shuroo karo."
+       ]
+      ],
+      [
+       "v24_rh_baais",
+       "Bis degree ka joo.",
+       [
+        "Bis degree ka joo."
+       ]
+      ],
+      [
+       "v25_pc_chill",
+       "Chirmaud yaar.",
+       [
+        "Chirmaud yaar.",
+        "Chirm mode yaar."
+       ]
+      ],
+      [
+       "v26_pc_teach",
+       "Jab mantri mod bullin AC 22 P set kar dena.",
+       [
+        "Jab mantri mod bullin AC 22 P set kar dena."
+       ]
+      ],
+      [
+       "s01_freezing_en",
+       "I am freezing.",
+       [
+        "I am freezing."
+       ]
+      ],
+      [
+       "s02_volume_hinglish",
+       "Y volume to the",
+       [
+        "Y volume to the"
+       ]
+      ],
+      [
+       "s03_ac_warm_hinglish",
+       "AC ka temperature to the warm kar do.",
+       [
+        "AC ka temperature to the warm kar do.",
+        "AC ka temperature toda warm kar do."
+       ]
+      ],
+      [
+       "s04_ac_negation_hinglish",
+       "AC band mat karna.",
+       [
+        "AC band mat karna."
+       ]
+      ],
+      [
+       "s05_fan_en",
+       "Note the temperature reduce the fan speed.",
+       [
+        "Note the temperature reduce the fan speed.",
+        "Note the temperature, reduce the fan speed."
+       ]
+      ],
+      [
+       "s06_next_hinglish",
+       "Agla gaana lagao.",
+       [
+        "Agla gaana lagao."
+       ]
+      ],
+      [
+       "s07_nav_en",
+       "Take me to connoit the place.",
+       [
+        "Take me to connoit the place."
+       ]
+      ],
+      [
+       "s08_set_temp_en",
+       "Set the cabin to 24 degrees.",
+       [
+        "Set the cabin to 24 degrees."
+       ]
+      ],
+      [
+       "s09_pause_en",
+       "Hos the music please.",
+       [
+        "Hos the music please.",
+        "Course the music please."
+       ]
+      ],
+      [
+       "s10_ood_en",
+       "The meeting went really well today.",
+       [
+        "The meeting went really well today."
+       ]
+      ]
+     ]
+    },
+    "snr_10db": {
+     "n": 36,
+     "wer": 0.3486,
+     "cer": 0.1722,
+     "wer_by_language": {
+      "english": 0.2105,
+      "hinglish": 0.3818,
+      "romanized_hindi": 0.8
+     },
+     "latency_s_median": 0.442,
+     "latency_s_p95": 0.942,
+     "rtf_median": 0.189,
+     "end_to_end_intent_accuracy": 0.8,
+     "end_to_end_n": 25,
+     "transcripts": [
+      [
+       "v01_en_freezing",
+       "I am freezing in here.",
+       [
+        "I am freezing in here."
+       ]
+      ],
+      [
+       "v02_en_cabin_warmer",
+       "Make the cabin a little warmer.",
+       [
+        "Make the cabin a little warmer."
+       ]
+      ],
+      [
+       "v03_en_set_23",
+       "Set the cabin to 23 degrees.",
+       [
+        "Set the cabin to 23 degrees."
+       ]
+      ],
+      [
+       "v04_en_volume_down",
+       "Bring the volume down.",
+       [
+        "Bring the volume down.",
+        "Wring the volume down."
+       ]
+      ],
+      [
+       "v05_en_next",
+       "Skip to the next 1.",
+       [
+        "Skip to the next 1.",
+        "Skept to the next 1."
+       ]
+      ],
+      [
+       "v06_en_nav",
+       "Navgate to India gate.",
+       [
+        "Navgate to India gate."
+       ]
+      ],
+      [
+       "v07_en_neg_ac",
+       "Don't turn your seat off.",
+       [
+        "Don't turn your seat off."
+       ]
+      ],
+      [
+       "v08_en_ood",
+       "Lock the car.",
+       [
+        "Lock the car.",
+        "Lock the card."
+       ]
+      ],
+      [
+       "v09_en_pause",
+       "Positive for a second.",
+       [
+        "Positive for a second."
+       ]
+      ],
+      [
+       "v10_en_fan_down",
+       "Turn down double",
+       [
+        "Turn down double"
+       ]
+      ],
+      [
+       "v11_hg_ac_warm",
+       "Y AC toda warm kar do.",
+       [
+        "Y AC toda warm kar do."
+       ]
+      ],
+      [
+       "v12_hg_fan_kam",
+       "Fan ki speed thodi kam karjoon.",
+       [
+        "Fan ki speed thodi kam karjoon."
+       ]
+      ],
+      [
+       "v13_hg_volume",
+       "Volume, badra do, yaar.",
+       [
+        "Volume, badra do, yaar."
+       ]
+      ],
+      [
+       "v14_hg_set_22",
+       "AC 22 p ka jo yaar.",
+       [
+        "AC 22 p ka jo yaar."
+       ]
+      ],
+      [
+       "v15_hg_nav",
+       "Juhoo beach tak le chalo.",
+       [
+        "Juhoo beach tak le chalo."
+       ]
+      ],
+      [
+       "v16_hg_pause",
+       "Music co for scarjoo.",
+       [
+        "Music co for scarjoo."
+       ]
+      ],
+      [
+       "v17_hg_neg",
+       "Volume mat bajao.",
+       [
+        "Volume mat bajao.",
+        "Volume match bajao."
+       ]
+      ],
+      [
+       "v18_hg_climate_on",
+       "Climates on kar do pai.",
+       [
+        "Climates on kar do pai."
+       ]
+      ],
+      [
+       "v19_rh_garmi",
+       "Gaami se jaan nikaal rahi hai.",
+       [
+        "Gaami se jaan nikaal rahi hai."
+       ]
+      ],
+      [
+       "v20_rh_agla",
+       "At the road, down all the gaanv.",
+       [
+        "At the road, down all the gaanv."
+       ]
+      ],
+      [
+       "v21_rh_awaaz",
+       "A vasto dhoti dhimi ka do.",
+       [
+        "A vasto dhoti dhimi ka do.",
+        "A vasto dhimi ka do."
+       ]
+      ],
+      [
+       "v22_rh_saket",
+       "Munhase sake jaana hai.",
+       [
+        "Munhase sake jaana hai."
+       ]
+      ],
+      [
+       "v23_rh_gaana",
+       "Gaana shuroo karo.",
+       [
+        "Gaana shuroo karo."
+       ]
+      ],
+      [
+       "v24_rh_baais",
+       "Bis degree ka joon.",
+       [
+        "Bis degree ka joon.",
+        "Bis degree curjoon."
+       ]
+      ],
+      [
+       "v25_pc_chill",
+       "Cell mode yaar.",
+       [
+        "Cell mode yaar.",
+        "Chill mode yaar."
+       ]
+      ],
+      [
+       "v26_pc_teach",
+       "Jab mention mode bolen AC 22 B set kar dena.",
+       [
+        "Jab mention mode bolen AC 22 B set kar dena.",
+        "Jab mantri mod bullin AC 22 B set kar dena."
+       ]
+      ],
+      [
+       "s01_freezing_en",
+       "I am freezing.",
+       [
+        "I am freezing."
+       ]
+      ],
+      [
+       "s02_volume_hinglish",
+       "Y, volume to the badha do.",
+       [
+        "Y, volume to the badha do."
+       ]
+      ],
+      [
+       "s03_ac_warm_hinglish",
+       "AC ka temperature toda warm kar do.",
+       [
+        "AC ka temperature toda warm kar do."
+       ]
+      ],
+      [
+       "s04_ac_negation_hinglish",
+       "AC band mat karna.",
+       [
+        "AC band mat karna."
+       ]
+      ],
+      [
+       "s05_fan_en",
+       "Not the temperature, reduce the fan speed.",
+       [
+        "Not the temperature, reduce the fan speed.",
+        "Note the temperature, reduce the fan speed."
+       ]
+      ],
+      [
+       "s06_next_hinglish",
+       "Agla ghaana lagao.",
+       [
+        "Agla ghaana lagao.",
+        "Agla gaana lagao."
+       ]
+      ],
+      [
+       "s07_nav_en",
+       "Take me to connoit the place.",
+       [
+        "Take me to connoit the place."
+       ]
+      ],
+      [
+       "s08_set_temp_en",
+       "Set the cabin to 24 degrees.",
+       [
+        "Set the cabin to 24 degrees."
+       ]
+      ],
+      [
+       "s09_pause_en",
+       "Pause the music please.",
+       [
+        "Pause the music please.",
+        "Course the music please."
+       ]
+      ],
+      [
+       "s10_ood_en",
+       "The meeting went really well today.",
+       [
+        "The meeting went really well today."
+       ]
+      ]
+     ]
+    },
+    "snr_5db": {
+     "n": 36,
+     "wer": 0.3371,
+     "cer": 0.1795,
+     "wer_by_language": {
+      "english": 0.2421,
+      "hinglish": 0.3818,
+      "romanized_hindi": 0.6
+     },
+     "latency_s_median": 0.453,
+     "latency_s_p95": 1.034,
+     "rtf_median": 0.196,
+     "end_to_end_intent_accuracy": 0.72,
+     "end_to_end_n": 25,
+     "transcripts": [
+      [
+       "v01_en_freezing",
+       "I am freezing in here.",
+       [
+        "I am freezing in here."
+       ]
+      ],
+      [
+       "v02_en_cabin_warmer",
+       "Make the cabin a little warmer.",
+       [
+        "Make the cabin a little warmer."
+       ]
+      ],
+      [
+       "v03_en_set_23",
+       "Set the cabin to 23 degrees.",
+       [
+        "Set the cabin to 23 degrees."
+       ]
+      ],
+      [
+       "v04_en_volume_down",
+       "Bring the volume down.",
+       [
+        "Bring the volume down."
+       ]
+      ],
+      [
+       "v05_en_next",
+       "Skip to the next 1.",
+       [
+        "Skip to the next 1."
+       ]
+      ],
+      [
+       "v06_en_nav",
+       "Navgadh to India gate.",
+       [
+        "Navgadh to India gate.",
+        "Navgate to India gate."
+       ]
+      ],
+      [
+       "v07_en_neg_ac",
+       "Don't turn your seat off.",
+       [
+        "Don't turn your seat off."
+       ]
+      ],
+      [
+       "v08_en_ood",
+       "Lock the card.",
+       [
+        "Lock the card."
+       ]
+      ],
+      [
+       "v09_en_pause",
+       "Positive for a second.",
+       [
+        "Positive for a second."
+       ]
+      ],
+      [
+       "v10_en_fan_down",
+       "Jone down double",
+       [
+        "Jone down double"
+       ]
+      ],
+      [
+       "v11_hg_ac_warm",
+       "Y AC toda warm kar do.",
+       [
+        "Y AC toda warm kar do."
+       ]
+      ],
+      [
+       "v12_hg_fan_kam",
+       "Fan ki speed thodi kam karjoon.",
+       [
+        "Fan ki speed thodi kam karjoon."
+       ]
+      ],
+      [
+       "v13_hg_volume",
+       "Volume, badra do yaar.",
+       [
+        "Volume, badra do yaar."
+       ]
+      ],
+      [
+       "v14_hg_set_22",
+       "AC 22 p ka jo yaar.",
+       [
+        "AC 22 p ka jo yaar."
+       ]
+      ],
+      [
+       "v15_hg_nav",
+       "Jubah beach tak le chalo.",
+       [
+        "Jubah beach tak le chalo.",
+        "Juboo beach tak le chalo."
+       ]
+      ],
+      [
+       "v16_hg_pause",
+       "Music ko for scourge.",
+       [
+        "Music ko for scourge.",
+        "Music co for scarjoo."
+       ]
+      ],
+      [
+       "v17_hg_neg",
+       "Volume match bajao.",
+       [
+        "Volume match bajao."
+       ]
+      ],
+      [
+       "v18_hg_climate_on",
+       "Climates on kar do pai.",
+       [
+        "Climates on kar do pai.",
+        "Flipnage on the do pai."
+       ]
+      ],
+      [
+       "v19_rh_garmi",
+       "Gaami se jaan nikaal rahi hai.",
+       [
+        "Gaami se jaan nikaal rahi hai."
+       ]
+      ],
+      [
+       "v20_rh_agla",
+       "Headlaur donon lagao.",
+       [
+        "Headlaur donon lagao."
+       ]
+      ],
+      [
+       "v21_rh_awaaz",
+       "A vasto d d nikaaldoo.",
+       [
+        "A vasto d d nikaaldoo."
+       ]
+      ],
+      [
+       "v22_rh_saket",
+       "Munhase sake jaana hai.",
+       [
+        "Munhase sake jaana hai.",
+        "Muphe sake jaana hai."
+       ]
+      ],
+      [
+       "v23_rh_gaana",
+       "Gaana shuroo karo.",
+       [
+        "Gaana shuroo karo."
+       ]
+      ],
+      [
+       "v24_rh_baais",
+       "Bis degree ka joon.",
+       [
+        "Bis degree ka joon."
+       ]
+      ],
+      [
+       "v25_pc_chill",
+       "Jill mode yaar.",
+       [
+        "Jill mode yaar."
+       ]
+      ],
+      [
+       "v26_pc_teach",
+       "Jab mention mode bolen AC 22 B set kar dena.",
+       [
+        "Jab mention mode bolen AC 22 B set kar dena.",
+        "Jabmentsal mode bolen AC 22 B set kar dena."
+       ]
+      ],
+      [
+       "s01_freezing_en",
+       "I am freezing.",
+       [
+        "I am freezing."
+       ]
+      ],
+      [
+       "s02_volume_hinglish",
+       "Buy, volume to the",
+       [
+        "Buy, volume to the"
+       ]
+      ],
+      [
+       "s03_ac_warm_hinglish",
+       "AC ka temperature to da warm kar do.",
+       [
+        "AC ka temperature to da warm kar do.",
+        "AC ka temperature to the warm kar do."
+       ]
+      ],
+      [
+       "s04_ac_negation_hinglish",
+       "AC band mat karna.",
+       [
+        "AC band mat karna."
+       ]
+      ],
+      [
+       "s05_fan_en",
+       "Not the temperature, reduce the fan speed.",
+       [
+        "Not the temperature, reduce the fan speed.",
+        "Note the temperature, reduce the fan speed."
+       ]
+      ],
+      [
+       "s06_next_hinglish",
+       "Agla gaana lagao.",
+       [
+        "Agla gaana lagao."
+       ]
+      ],
+      [
+       "s07_nav_en",
+       "Take me to connoit the place.",
+       [
+        "Take me to connoit the place."
+       ]
+      ],
+      [
+       "s08_set_temp_en",
+       "Set the cabin to 24 degrees.",
+       [
+        "Set the cabin to 24 degrees."
+       ]
+      ],
+      [
+       "s09_pause_en",
+       "Poss the music please.",
+       [
+        "Poss the music please.",
+        "Cost the music please."
+       ]
+      ],
+      [
+       "s10_ood_en",
+       "The meeting went really well today.",
+       [
+        "The meeting went really well today."
+       ]
+      ]
+     ]
+    }
+   }
+  },
+  "apex": {
+   "load_s": 4.44,
+   "peak_rss_mb": 2254.6,
+   "model_files_mb": 988.7,
+   "conditions": {
+    "clean": {
+     "n": 36,
+     "wer": 0.2343,
+     "cer": 0.0941,
+     "wer_by_language": {
+      "english": 0.1474,
+      "hinglish": 0.2545,
+      "romanized_hindi": 0.52
+     },
+     "latency_s_median": 2.551,
+     "latency_s_p95": 5.191,
+     "rtf_median": 0.987,
+     "end_to_end_intent_accuracy": 0.8,
+     "end_to_end_n": 25,
+     "transcripts": [
+      [
+       "v01_en_freezing",
+       "I am freezing in here.",
+       [
+        "I am freezing in here."
+       ]
+      ],
+      [
+       "v02_en_cabin_warmer",
+       "Mak the cabin a little warmer.",
+       [
+        "Mak the cabin a little warmer.",
+        "Make the cabin a little warmer."
+       ]
+      ],
+      [
+       "v03_en_set_23",
+       "Kesht the cabin to 23 degrees.",
+       [
+        "Kesht the cabin to 23 degrees.",
+        "Sett the cabin to 23 degrees.",
+        "Set the cabin to 23 degrees."
+       ]
+      ],
+      [
+       "v04_en_volume_down",
+       "Bring the volume down.",
+       [
+        "Bring the volume down."
+       ]
+      ],
+      [
+       "v05_en_next",
+       "Skip to the next 1.",
+       [
+        "Skip to the next 1.",
+        "Skept to the next 1."
+       ]
+      ],
+      [
+       "v06_en_nav",
+       "navigate to india gate",
+       [
+        "navigate to india gate",
+        "Navigate to India Gate.",
+        "Navgadh to India gai.",
+        "Navgate to India gate."
+       ]
+      ],
+      [
+       "v07_en_neg_ac",
+       "Don't turn the AC off.",
+       [
+        "Don't turn the AC off.",
+        "Don't turn your seat off."
+       ]
+      ],
+      [
+       "v08_en_ood",
+       "Lock the car.",
+       [
+        "Lock the car."
+       ]
+      ],
+      [
+       "v09_en_pause",
+       "Paz it for a second.",
+       [
+        "Paz it for a second.",
+        "Pause it for a second.",
+        "Positive for a second."
+       ]
+      ],
+      [
+       "v10_en_fan_down",
+       "Tone down the blower.",
+       [
+        "Tone down the blower.",
+        "Chon down double"
+       ]
+      ],
+      [
+       "v11_hg_ac_warm",
+       "Bhai, AC toda warm kar do.",
+       [
+        "Bhai, AC toda warm kar do.",
+        "Y AC toda warm kar do."
+       ]
+      ],
+      [
+       "v12_hg_fan_kam",
+       "Fan ki speed thodi kaam kar jo.",
+       [
+        "Fan ki speed thodi kaam kar jo.",
+        "Fang ki speed thodi kam karjoon.",
+        "Fang ki speed thodi kam karjoo."
+       ]
+      ],
+      [
+       "v13_hg_volume",
+       "Volume badha do yaar.",
+       [
+        "Volume badha do yaar.",
+        "Volume bada do yaar."
+       ]
+      ],
+      [
+       "v14_hg_set_22",
+       "AC 22 p ka do yaar.",
+       [
+        "AC 22 p ka do yaar.",
+        "AC 22 p ka jooyaar.",
+        "AC 22 p ka juyaar."
+       ]
+      ],
+      [
+       "v15_hg_nav",
+       "Joohoo beach tak le chalo.",
+       [
+        "Joohoo beach tak le chalo.",
+        "Jhoo beach tak le chalo.",
+        "Juboo beach tak le chalo."
+       ]
+      ],
+      [
+       "v16_hg_pause",
+       "Music ko paas kaajoo.",
+       [
+        "Music ko paas kaajoo.",
+        "Music copors ka joo.",
+        "Music copors kaajoo."
+       ]
+      ],
+      [
+       "v17_hg_neg",
+       "Volume mat batao.",
+       [
+        "Volume mat batao."
+       ]
+      ],
+      [
+       "v18_hg_climate_on",
+       "Climmate on kar dubai.",
+       [
+        "Climmate on kar dubai.",
+        "Climate on kar dubai.",
+        "Flipnit onker Dubai",
+        "Flime made onker Dubai."
+       ]
+      ],
+      [
+       "v19_rh_garmi",
+       "Gaami se jaan nikaal rahe hai.",
+       [
+        "Gaami se jaan nikaal rahe hai.",
+        "Gaami se jaan nikaal rahi hai."
+       ]
+      ],
+      [
+       "v20_rh_agla",
+       "At the gaanv lagao.",
+       [
+        "At the gaanv lagao.",
+        "At the corner lagao."
+       ]
+      ],
+      [
+       "v21_rh_awaaz",
+       "Aavaaz thodi di mein kar do.",
+       [
+        "Aavaaz thodi di mein kar do.",
+        "Aavaaz thodi dhimi kar do."
+       ]
+      ],
+      [
+       "v22_rh_saket",
+       "Muvai saaket jaana hai.",
+       [
+        "Muvai saaket jaana hai.",
+        "Move saaket jaana hai.",
+        "Moveli sake jaana hai."
+       ]
+      ],
+      [
+       "v23_rh_gaana",
+       "Gaana shuroo karo.",
+       [
+        "Gaana shuroo karo."
+       ]
+      ],
+      [
+       "v24_rh_baais",
+       "Bais degree kar do.",
+       [
+        "Bais degree kar do.",
+        "Bis degree ka joo."
+       ]
+      ],
+      [
+       "v25_pc_chill",
+       "Chill mode yaar.",
+       [
+        "Chill mode yaar.",
+        "Chirmaud yaar.",
+        "Chirm mode yaar."
+       ]
+      ],
+      [
+       "v26_pc_teach",
+       "Jab main chill mode bolen, AC 22 PE set kar dena.",
+       [
+        "Jab main chill mode bolen, AC 22 PE set kar dena.",
+        "Jab mantri mod bullin AC 22 P set kar dena."
+       ]
+      ],
+      [
+       "s01_freezing_en",
+       "I'm freezing.",
+       [
+        "I'm freezing.",
+        "I am freezing."
+       ]
+      ],
+      [
+       "s02_volume_hinglish",
+       "Bhai, volume toda badlaadoo.",
+       [
+        "Bhai, volume toda badlaadoo.",
+        "Bhai, volume toda badraadoo.",
+        "Y volume to the"
+       ]
+      ],
+      [
+       "s03_ac_warm_hinglish",
+       "AC ka temperature toda warm kar do.",
+       [
+        "AC ka temperature toda warm kar do.",
+        "AC ka temperature to the warm kar do."
+       ]
+      ],
+      [
+       "s04_ac_negation_hinglish",
+       "AC band mat karna.",
+       [
+        "AC band mat karna."
+       ]
+      ],
+      [
+       "s05_fan_en",
+       "not the temperature, reduce the fan speed.",
+       [
+        "not the temperature, reduce the fan speed.",
+        "Not the temperature, reduce the fan speed.",
+        "Note the temperature reduce the fan speed.",
+        "Note the temperature, reduce the fan speed."
+       ]
+      ],
+      [
+       "s06_next_hinglish",
+       "Agle gaana lagao.",
+       [
+        "Agle gaana lagao.",
+        "Agla gaana lagao."
+       ]
+      ],
+      [
+       "s07_nav_en",
+       "Tak me to konaunt the place.",
+       [
+        "Tak me to konaunt the place.",
+        "Take me to the place.",
+        "Take me to connoit the place."
+       ]
+      ],
+      [
+       "s08_set_temp_en",
+       "Set the cabin to 24 degrees.",
+       [
+        "Set the cabin to 24 degrees."
+       ]
+      ],
+      [
+       "s09_pause_en",
+       "Pause the music please.",
+       [
+        "Pause the music please.",
+        "Hos the music please.",
+        "Course the music please."
+       ]
+      ],
+      [
+       "s10_ood_en",
+       "The meeting went really well today.",
+       [
+        "The meeting went really well today."
+       ]
+      ]
+     ]
+    },
+    "snr_10db": {
+     "n": 36,
+     "wer": 0.3257,
+     "cer": 0.1722,
+     "wer_by_language": {
+      "english": 0.2632,
+      "hinglish": 0.2727,
+      "romanized_hindi": 0.68
+     },
+     "latency_s_median": 2.424,
+     "latency_s_p95": 4.459,
+     "rtf_median": 1.014,
+     "end_to_end_intent_accuracy": 0.88,
+     "end_to_end_n": 25,
+     "transcripts": [
+      [
+       "v01_en_freezing",
+       "I'm freezing in here.",
+       [
+        "I'm freezing in here.",
+        "I am freezing in here."
+       ]
+      ],
+      [
+       "v02_en_cabin_warmer",
+       "Make the cabin a little warmer.",
+       [
+        "Make the cabin a little warmer."
+       ]
+      ],
+      [
+       "v03_en_set_23",
+       "set the cabin to 23 degrees",
+       [
+        "set the cabin to 23 degrees",
+        "Sett the cabin to 23 degrees.",
+        "Set the cabin to 23 degrees."
+       ]
+      ],
+      [
+       "v04_en_volume_down",
+       "Wrng the volume down.",
+       [
+        "Wrng the volume down.",
+        "Bring the volume down.",
+        "Wring the volume down."
+       ]
+      ],
+      [
+       "v05_en_next",
+       "Skip to the next 1.",
+       [
+        "Skip to the next 1.",
+        "Skept to the next 1."
+       ]
+      ],
+      [
+       "v06_en_nav",
+       "nagvigate to india gate.",
+       [
+        "nagvigate to india gate.",
+        "Navigate to India Gate.",
+        "Navgate to India gate."
+       ]
+      ],
+      [
+       "v07_en_neg_ac",
+       "Don't turn the AC off.",
+       [
+        "Don't turn the AC off.",
+        "Don't turn your seat off."
+       ]
+      ],
+      [
+       "v08_en_ood",
+       "Lock the car.",
+       [
+        "Lock the car.",
+        "Lock the card."
+       ]
+      ],
+      [
+       "v09_en_pause",
+       "वज ज ज ज ज ज ज",
+       [
+        "वज ज ज ज ज ज ज",
+        "Paus it for a second.",
+        "Positive for a second."
+       ]
+      ],
+      [
+       "v10_en_fan_down",
+       "Tone down the blower.",
+       [
+        "Tone down the blower.",
+        "Turn down double"
+       ]
+      ],
+      [
+       "v11_hg_ac_warm",
+       "Bhai, aisi toda warm kar do.",
+       [
+        "Bhai, aisi toda warm kar do.",
+        "Bhai, AC toda warm kar do.",
+        "Y AC toda warm kar do."
+       ]
+      ],
+      [
+       "v12_hg_fan_kam",
+       "Fan ki speed thodi kaam kar do.",
+       [
+        "Fan ki speed thodi kaam kar do.",
+        "Fan ki speed thodi kam karjoon."
+       ]
+      ],
+      [
+       "v13_hg_volume",
+       "Volume badha do yaar.",
+       [
+        "Volume badha do yaar.",
+        "Volume, badra do, yaar."
+       ]
+      ],
+      [
+       "v14_hg_set_22",
+       "AC 22 pi ka do yaar.",
+       [
+        "AC 22 pi ka do yaar.",
+        "AC 22 p ka jo yaar."
+       ]
+      ],
+      [
+       "v15_hg_nav",
+       "Joohoo beach tak le chalo.",
+       [
+        "Joohoo beach tak le chalo.",
+        "Juhoo beach tak le chalo."
+       ]
+      ],
+      [
+       "v16_hg_pause",
+       "Music co for scarjoo.",
+       [
+        "Music co for scarjoo."
+       ]
+      ],
+      [
+       "v17_hg_neg",
+       "Volume mat batao.",
+       [
+        "Volume mat batao.",
+        "Volume mat bajao.",
+        "Volume match bajao."
+       ]
+      ],
+      [
+       "v18_hg_climate_on",
+       "Climmate on kar du pai.",
+       [
+        "Climmate on kar du pai.",
+        "Climate on kar du pai.",
+        "Climates on kar do pai."
+       ]
+      ],
+      [
+       "v19_rh_garmi",
+       "Gaami se jaan nikaal rahi hai.",
+       [
+        "Gaami se jaan nikaal rahi hai."
+       ]
+      ],
+      [
+       "v20_rh_agla",
+       "At the road, down all the gaanv.",
+       [
+        "At the road, down all the gaanv."
+       ]
+      ],
+      [
+       "v21_rh_awaaz",
+       "Aavaaz thodi dhimi ka do.",
+       [
+        "Aavaaz thodi dhimi ka do.",
+        "A vasto dhoti dhimi ka do.",
+        "A vasto dhimi ka do."
+       ]
+      ],
+      [
+       "v22_rh_saket",
+       "Muvai saaket jaana hai.",
+       [
+        "Muvai saaket jaana hai.",
+        "Munhase sake jaana hai."
+       ]
+      ],
+      [
+       "v23_rh_gaana",
+       "Gaana shuroo karo.",
+       [
+        "Gaana shuroo karo.",
+        "Gaanna shuroo karo."
+       ]
+      ],
+      [
+       "v24_rh_baais",
+       "Vais degree ka do.",
+       [
+        "Vais degree ka do.",
+        "Vais degree kar do.",
+        "Bis degree ka joon.",
+        "Bis degree curjoon."
+       ]
+      ],
+      [
+       "v25_pc_chill",
+       "Chill mode yaar.",
+       [
+        "Chill mode yaar.",
+        "Cell mode yaar."
+       ]
+      ],
+      [
+       "v26_pc_teach",
+       "Jab main chill mode bolin, AC 22 PE set kar dena.",
+       [
+        "Jab main chill mode bolin, AC 22 PE set kar dena.",
+        "Jab main chill mode bole AC 22 pe set kar dena.",
+        "Jab mention mode bolen AC 22 B set kar dena.",
+        "Jab mantri mod bullin AC 22 B set kar dena."
+       ]
+      ],
+      [
+       "s01_freezing_en",
+       "I'm freezing.",
+       [
+        "I'm freezing.",
+        "I am freezing."
+       ]
+      ],
+      [
+       "s02_volume_hinglish",
+       "Bhai, volume toda badraadoo.",
+       [
+        "Bhai, volume toda badraadoo.",
+        "Y, volume to the badha do."
+       ]
+      ],
+      [
+       "s03_ac_warm_hinglish",
+       "AC ka temperature toda warm kar do.",
+       [
+        "AC ka temperature toda warm kar do."
+       ]
+      ],
+      [
+       "s04_ac_negation_hinglish",
+       "AC band matkon.",
+       [
+        "AC band matkon.",
+        "AC band mat karna."
+       ]
+      ],
+      [
+       "s05_fan_en",
+       "not the temperature, reduce the fan speed.",
+       [
+        "not the temperature, reduce the fan speed.",
+        "Not the temperature, reduce the fan speed.",
+        "Note the temperature, reduce the fan speed."
+       ]
+      ],
+      [
+       "s06_next_hinglish",
+       "Agle kahaana lagao.",
+       [
+        "Agle kahaana lagao.",
+        "Aglegaana lagao.",
+        "Agla ghaana lagao.",
+        "Agla gaana lagao."
+       ]
+      ],
+      [
+       "s07_nav_en",
+       "Tak me to konaunt the place.",
+       [
+        "Tak me to konaunt the place.",
+        "Take me to connoit the place."
+       ]
+      ],
+      [
+       "s08_set_temp_en",
+       "Set the cabin to 24 degrees.",
+       [
+        "Set the cabin to 24 degrees."
+       ]
+      ],
+      [
+       "s09_pause_en",
+       "वह वज ज",
+       [
+        "वह वज ज",
+        "Pause the music please.",
+        "Course the music please."
+       ]
+      ],
+      [
+       "s10_ood_en",
+       "The meeting went really well today.",
+       [
+        "The meeting went really well today."
+       ]
+      ]
+     ]
+    },
+    "snr_5db": {
+     "n": 36,
+     "wer": 0.3371,
+     "cer": 0.1693,
+     "wer_by_language": {
+      "english": 0.2842,
+      "hinglish": 0.3273,
+      "romanized_hindi": 0.56
+     },
+     "latency_s_median": 2.454,
+     "latency_s_p95": 4.456,
+     "rtf_median": 1.014,
+     "end_to_end_intent_accuracy": 0.84,
+     "end_to_end_n": 25,
+     "transcripts": [
+      [
+       "v01_en_freezing",
+       "I'm freezing in here.",
+       [
+        "I'm freezing in here.",
+        "I am freezing in here."
+       ]
+      ],
+      [
+       "v02_en_cabin_warmer",
+       "Make the cabin a little warmer.",
+       [
+        "Make the cabin a little warmer."
+       ]
+      ],
+      [
+       "v03_en_set_23",
+       "set the cabin to 23 degrees",
+       [
+        "set the cabin to 23 degrees",
+        "Sett the cabin to 23 degrees.",
+        "Set the cabin to 23 degrees."
+       ]
+      ],
+      [
+       "v04_en_volume_down",
+       "Ko जाङ जाङ जाङ जाङ",
+       [
+        "Ko जाङ जाङ जाङ जाङ",
+        "Wring the volume down.",
+        "Bring the volume down."
+       ]
+      ],
+      [
+       "v05_en_next",
+       "Skip to the next 1.",
+       [
+        "Skip to the next 1."
+       ]
+      ],
+      [
+       "v06_en_nav",
+       "nagvigate to india gate.",
+       [
+        "nagvigate to india gate.",
+        "Navigate to India Gate.",
+        "Navgadh to India gate.",
+        "Navgate to India gate."
+       ]
+      ],
+      [
+       "v07_en_neg_ac",
+       "Don't turn the AC off.",
+       [
+        "Don't turn the AC off.",
+        "Don't turn your seat off."
+       ]
+      ],
+      [
+       "v08_en_ood",
+       "Lock the car.",
+       [
+        "Lock the car.",
+        "Lock the card."
+       ]
+      ],
+      [
+       "v09_en_pause",
+       "Posite for a second.",
+       [
+        "Posite for a second.",
+        "Positive for a second."
+       ]
+      ],
+      [
+       "v10_en_fan_down",
+       "Tone down the blower.",
+       [
+        "Tone down the blower.",
+        "Jone down double"
+       ]
+      ],
+      [
+       "v11_hg_ac_warm",
+       "Bhai, aisi toda warm kar do.",
+       [
+        "Bhai, aisi toda warm kar do.",
+        "Bhai, aisi toda won kar do.",
+        "Y AC toda warm kar do."
+       ]
+      ],
+      [
+       "v12_hg_fan_kam",
+       "Fanky speed thodi kaam kar do.",
+       [
+        "Fanky speed thodi kaam kar do.",
+        "Fan ki speed thodi kam kar do.",
+        "Fan ki speed thodi kam karjoon."
+       ]
+      ],
+      [
+       "v13_hg_volume",
+       "Volume badha do yaar.",
+       [
+        "Volume badha do yaar.",
+        "Volume, badra do yaar."
+       ]
+      ],
+      [
+       "v14_hg_set_22",
+       "AC 22 pi ka do yaar.",
+       [
+        "AC 22 pi ka do yaar.",
+        "AC 22 p ka jo yaar."
+       ]
+      ],
+      [
+       "v15_hg_nav",
+       "Joohoo beach tak le chalo.",
+       [
+        "Joohoo beach tak le chalo.",
+        "Jubah beach tak le chalo.",
+        "Juboo beach tak le chalo."
+       ]
+      ],
+      [
+       "v16_hg_pause",
+       "Music ko for scourge.",
+       [
+        "Music ko for scourge.",
+        "Music co for scarjoo."
+       ]
+      ],
+      [
+       "v17_hg_neg",
+       "Volume math bacha",
+       [
+        "Volume math bacha",
+        "Volume math batao.",
+        "Volume match bajao."
+       ]
+      ],
+      [
+       "v18_hg_climate_on",
+       "Climmate on kar du pai.",
+       [
+        "Climmate on kar du pai.",
+        "Climate on kar du pai.",
+        "Climates on kar do pai.",
+        "Flipnage on the do pai."
+       ]
+      ],
+      [
+       "v19_rh_garmi",
+       "Gaami se jaan nikaal rahe hai.",
+       [
+        "Gaami se jaan nikaal rahe hai.",
+        "Gaami se jaan nikaal rahi hai."
+       ]
+      ],
+      [
+       "v20_rh_agla",
+       "Headlaur donon lagao.",
+       [
+        "Headlaur donon lagao."
+       ]
+      ],
+      [
+       "v21_rh_awaaz",
+       "Aavaaz thodi dinika do.",
+       [
+        "Aavaaz thodi dinika do.",
+        "A vasto d d nikaaldoo."
+       ]
+      ],
+      [
+       "v22_rh_saket",
+       "Mumhe sakhe jaana hai.",
+       [
+        "Mumhe sakhe jaana hai.",
+        "Move shaaket jaana hai.",
+        "Munhase sake jaana hai.",
+        "Muphe sake jaana hai."
+       ]
+      ],
+      [
+       "v23_rh_gaana",
+       "Gaana shuroo karo.",
+       [
+        "Gaana shuroo karo."
+       ]
+      ],
+      [
+       "v24_rh_baais",
+       "Vais degree ka jo.",
+       [
+        "Vais degree ka jo.",
+        "Vais degree kar do.",
+        "Bis degree ka joon."
+       ]
+      ],
+      [
+       "v25_pc_chill",
+       "Chill mode yaar.",
+       [
+        "Chill mode yaar.",
+        "Jill mode yaar."
+       ]
+      ],
+      [
+       "v26_pc_teach",
+       "Jab main chill mode bolin. AC 22 P set kar dena.",
+       [
+        "Jab main chill mode bolin. AC 22 P set kar dena.",
+        "Jab main chill mode bole AC 22 pe set kar dena.",
+        "Jab mention mode bolen AC 22 B set kar dena.",
+        "Jabmentsal mode bolen AC 22 B set kar dena."
+       ]
+      ],
+      [
+       "s01_freezing_en",
+       "I'm freezing.",
+       [
+        "I'm freezing.",
+        "I am freezing."
+       ]
+      ],
+      [
+       "s02_volume_hinglish",
+       "Bhai, volume to da badraadoo.",
+       [
+        "Bhai, volume to da badraadoo.",
+        "Buy, volume to the"
+       ]
+      ],
+      [
+       "s03_ac_warm_hinglish",
+       "AC ka temperature toda warm kar do.",
+       [
+        "AC ka temperature toda warm kar do.",
+        "AC ka temperature to da warm kar do.",
+        "AC ka temperature to the warm kar do."
+       ]
+      ],
+      [
+       "s04_ac_negation_hinglish",
+       "AC band matkonna.",
+       [
+        "AC band matkonna.",
+        "AC band matkon.",
+        "AC band mat karna."
+       ]
+      ],
+      [
+       "s05_fan_en",
+       "not the temperature, reduce the fan speed.",
+       [
+        "not the temperature, reduce the fan speed.",
+        "Not the temperature, reduce the fan speed.",
+        "Note the temperature, reduce the fan speed."
+       ]
+      ],
+      [
+       "s06_next_hinglish",
+       "Agle kahaana lagao.",
+       [
+        "Agle kahaana lagao.",
+        "Agle gaana lagao.",
+        "Agla gaana lagao."
+       ]
+      ],
+      [
+       "s07_nav_en",
+       "Take me to konaunt the place.",
+       [
+        "Take me to konaunt the place.",
+        "Take me to connoit the place."
+       ]
+      ],
+      [
+       "s08_set_temp_en",
+       "Set the cabin to 24 degrees.",
+       [
+        "Set the cabin to 24 degrees."
+       ]
+      ],
+      [
+       "s09_pause_en",
+       "वह वज वज",
+       [
+        "वह वज वज",
+        "Pause the music please.",
+        "Poss the music please.",
+        "Cost the music please."
+       ]
+      ],
+      [
+       "s10_ood_en",
+       "The meeting went really well today.",
+       [
+        "The meeting went really well today."
+       ]
+      ]
+     ]
+    }
+   }
+  }
+ }
+}

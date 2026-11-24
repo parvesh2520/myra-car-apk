@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "MYRA",
+    "slug": "myra-car",
+    "version": "1.0.0",
+    "orientation": "landscape",
+    "icon": "./assets/icon.png",
+    "backgroundColor": "#05080d",
+    "android": {
+      "package": "com.myra.car",
+      "adaptiveIcon": {
+        "backgroundColor": "#05080d",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.CAMERA"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "buildArchs": ["arm64-v8a"]
+          }
+        }
+      ],
+      "llama.rn",
+      "./plugins/withMyraWebUI"
+    ]
+  }
+}

@@ -89,7 +89,8 @@ class CloudASR(SpeechRecognizer):
                                  raw_detected_language=t.language, duration_s=t.audio_s, latency_s=t.latency_s,
                                  status="ok" if t.text else "silence")
             except ProviderError as e:
-                why = f"cloud speech recognition failed ({e.kind})"
+                why = f"cloud speech recognition failed ({e.kind}: {e.message})"
+                print(f"[ASR] Sarvam failed: {e}", flush=True)
         pack = self._pack_asr()
         if pack is not None:
             return self._transcribe_pack(pack, audio, sample_rate, why)

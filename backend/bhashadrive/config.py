@@ -17,6 +17,11 @@ try:
 except ImportError:  # python-dotenv is optional
     pass
 
+# Keys pasted into a dashboard often carry a stray space, tab or newline; HTTP clients reject such header values.
+for _k, _v in list(os.environ.items()):
+    if _k.endswith("_API_KEY") and _v != _v.strip():
+        os.environ[_k] = _v.strip()
+
 
 def _env(name: str, default: str) -> str:
     return os.environ.get(name, default)

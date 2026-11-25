@@ -113,7 +113,7 @@ def _send(provider: str, retries: int, call) -> httpx.Response:
         except httpx.TimeoutException:
             err = ProviderError(provider, "timeout", "request timed out")
         except httpx.TransportError as e:
-            err = ProviderError(provider, "network", f"{type(e).__name__}: {e}"[:200])  # no request data: safe to show
+            err = ProviderError(provider, "network", type(e).__name__)  # not str(e): a header error quotes the key
         if not err.retryable or attempt == retries:
             raise err
         time.sleep(0.4 * (attempt + 1))

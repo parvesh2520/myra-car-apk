@@ -1,85 +1,113 @@
 /**
- * On-device understanding: Gemma 3 1B (Q4_K_M GGUF, llama.cpp via llama.rn) turns one transcript into cockpit
- * commands. Output is constrained by the backend's own command schema (commands.json, written by
- * backend/scripts/export_car_model_spec.py), so the model can only answer with valid commands.
+ * On-device understanding: the cockpit command model, Gemma 3 270M fine-tuned on the cockpit's commands
+ * (backend/bhashadrive/training/train_command_llm.py), 8-bit GGUF, run by llama.cpp via llama.rn.
+ * It reads the transcript (English from Sarvam's translate mode) and answers with a JSON array of commands in the
+ * backend's schema (backend/bhashadrive/nlu/cockpit_commands.py).
  *
- * The model file (~806 MB) is downloaded once into the app's documents folder on first launch.
+ * The model is downloaded from Hugging Face on first launch (291 MB, once). The download can be switched off
+ * and on from the app; the choice is remembered. Same decoding as the backend's CommandLLM: no grammar (8x
+ * slower on Gemma's 262k-token vocabulary, same answers), every command validated against the schema afterwards.
+ * Settings are sized for low-end head units: small context and batch, all 4 cores while a command is understood.
  */
 import { initLlama, type LlamaContext } from 'llama.rn';
 import { File, Paths } from 'expo-file-system';
+import type { DownloadTask } from 'expo-file-system';
 import spec from './commands.json';
 
-export const MODEL_NAME = 'Gemma 3 1B';
-const MODEL_URL = 'https://huggingface.co/ggml-org/gemma-3-1b-it-GGUF/resolve/main/gemma-3-1b-it-Q4_K_M.gguf';
-const MODEL_FILE = 'gemma-3-1b-it-Q4_K_M.gguf';
-const MODEL_BYTES = 806058240;
+export const MODEL_NAME = 'Cockpit Gemma 270M';
+const MODEL_FILE = 'cockpit-gemma-270m.q8_0.gguf';
+const MODEL_URL = `https://huggingface.co/Parvesh2520/myra-cockpit-gemma-270m/resolve/main/${MODEL_FILE}`;
+const MODEL_BYTES = 291543776;
+const MAX_COMMANDS = 4;
 
 export interface Command {
   type: string;
   [field: string]: unknown;
 }
 
-const INSTRUCTIONS = `You convert a driver's in-car voice command into a JSON array of car commands.
-The driver speaks English, Hindi or Hinglish; the text may contain speech-recognition errors.
-Commands (? = optional field; numbers are inclusive ranges):
-${spec.capabilities}
-Rules:
-- Output only the JSON array, no markdown, at most 4 commands. Leave out optional fields you don't need.
-- "delta" is a relative change; negative lowers. thoda/a little = 1 step, bahut/zyada/a lot = 3 steps.
-- "garmi"/"too hot" = climate.adjustTemp delta -2 feeling "hot"; "thand"/"too cold" = delta 2 feeling "cold".
-- Navigation destinations are plain place names; "ghar" = "home", "office" = "work".
-- Yes/no answers or anything not in the list: output [{"type":"none"}].
-Examples:
-"AC 22 pe kar do" -> [{"type":"climate.setTemp","value":22}]
-"AC band karo" -> [{"type":"climate.power","on":false}]
-"fan speed badha do" -> [{"type":"climate.fan","delta":1}]
-"fan kam karo" -> [{"type":"climate.fan","delta":-1}]
-"volume thoda kam karo" -> [{"type":"media.volume","delta":-2}]
-"koi gaana chala do" -> [{"type":"media.play"}]
-"next song" -> [{"type":"media.skip","dir":1}]
-"airport le chalo" -> [{"type":"nav.start","destination":"airport"}]
-"mummy ko call karo" -> [{"type":"phone.call","contact":"mummy"}]
-"music band karo aur AC 24" -> [{"type":"media.pause"},{"type":"climate.setTemp","value":24}]
-"hello" -> [{"type":"greet"}]
-"haan" -> [{"type":"none"}]`;
-
-/** Gemma's chat format, built here: llama.rn's jinja chat path does not reliably apply the JSON grammar. */
+/** The training prompt (cockpit_commands.prompt): the sentence alone; llama.cpp adds <bos>. */
 const prompt = (text: string) =>
-  `<start_of_turn>user
-${INSTRUCTIONS}
+  `<start_of_turn>user\n${text.split(/\s+/).join(' ').slice(0, 300)}<end_of_turn>\n<start_of_turn>model\n`;
 
-Driver: ${text.split(/\s+/).join(' ').slice(0, 300)}<end_of_turn>
-<start_of_turn>model
-`;
+/* ---------- download switch (remembered in app storage) ---------- */
 
-// The backend's command schema, plus {"type":"none"} for "nothing to do": with at least one item required, the
-// 1B model has to choose a command instead of defaulting to an empty list. `valid` drops "none".
-const SCHEMA = JSON.stringify({
-  ...spec.schema,
-  minItems: 1,
-  items: { oneOf: [...spec.schema.items.oneOf, { type: 'object', properties: { type: { const: 'none' } }, required: ['type'], additionalProperties: false }] },
-});
+const settingsFile = new File(Paths.document, 'myra-settings.json');
+const modelFile = () => new File(Paths.document, MODEL_FILE);
+export const modelInstalled = () => modelFile().exists && modelFile().size === MODEL_BYTES;
+
+export function downloadEnabled(): boolean {
+  try {
+    return settingsFile.exists ? JSON.parse(settingsFile.textSync()).download !== false : true;
+  } catch {
+    return true;
+  }
+}
+
+function saveDownloadEnabled(on: boolean) {
+  if (!settingsFile.exists) settingsFile.create();
+  settingsFile.write(JSON.stringify({ download: on }));
+}
+
+let task: DownloadTask | null = null;
+let downloading: Promise<void> | null = null;
+
+/** Downloads the model unless it is installed or the switch is off; resumes a paused download. */
+function download(onStatus: (s: string) => void): Promise<void> {
+  if (modelInstalled()) return Promise.resolve();
+  downloading ??= (async () => {
+    try {
+      let done: File | null;
+      if (task?.state === 'paused') {
+        done = await task.resumeAsync();
+      } else {
+        const file = modelFile();
+        if (file.exists) file.delete(); // partial download from an earlier run
+        task = File.createDownloadTask(MODEL_URL, file, {
+          onProgress: ({ bytesWritten }) => onStatus(`${MODEL_NAME}: downloading ${Math.floor((bytesWritten / MODEL_BYTES) * 100)}% · tap to pause`),
+        });
+        done = await task.downloadAsync();
+      }
+      if (done === null) return onStatus(`${MODEL_NAME}: download paused · tap to resume`);
+      task = null;
+      if (!modelInstalled()) throw new Error(`download incomplete (${modelFile().size} bytes)`);
+    } finally {
+      downloading = null;
+    }
+  })();
+  return downloading;
+}
+
+/** Turns the cloud download on (starts or resumes it) or off (pauses it). Returns the new state. */
+export async function setDownloadEnabled(on: boolean, onStatus: (s: string) => void): Promise<boolean> {
+  saveDownloadEnabled(on);
+  if (on) {
+    loadGemma(onStatus).catch(() => undefined);
+  } else if (task?.state === 'active') {
+    await task.pauseAsync();
+  } else if (!modelInstalled()) {
+    onStatus(`${MODEL_NAME}: download off · tap to download`);
+  }
+  return on;
+}
+
+/* ---------- model ---------- */
 
 let ready: Promise<LlamaContext> | null = null;
 let queue: Promise<unknown> = Promise.resolve(); // one completion at a time per context
 
-/** Downloads (first launch) and loads the model; status lines go to `onStatus`. Retries after a failure. */
+/** Downloads (if needed and allowed) and loads the model; status lines go to `onStatus`. Retries after a failure. */
 export function loadGemma(onStatus: (s: string) => void): Promise<LlamaContext> {
   ready ??= (async () => {
-    const file = new File(Paths.document, MODEL_FILE);
-    if (!file.exists || file.size !== MODEL_BYTES) {
-      if (file.exists) file.delete(); // partial download
-      onStatus(`${MODEL_NAME}: downloading…`);
-      const task = File.createDownloadTask(MODEL_URL, file, {
-        onProgress: ({ bytesWritten }) => onStatus(`${MODEL_NAME}: downloading ${Math.floor((bytesWritten / MODEL_BYTES) * 100)}%`),
-      });
-      await task.downloadAsync();
-      if (file.size !== MODEL_BYTES) throw new Error(`model download incomplete (${file.size} bytes)`);
+    if (!modelInstalled()) {
+      if (!downloadEnabled()) throw new Error('download off · tap to download');
+      await download(onStatus);
+      if (!modelInstalled()) throw new Error('download paused · tap to resume');
     }
     onStatus(`${MODEL_NAME}: loading…`);
-    const ctx = await initLlama({ model: file.uri, n_ctx: 2048, n_threads: 4, n_gpu_layers: 0, use_mlock: false });
+    const ctx = await initLlama({ model: modelFile().uri, n_ctx: 256, n_batch: 64, n_threads: 4, n_gpu_layers: 0, use_mlock: false });
+    // Warm-up: pages the weights into RAM now, so the first spoken command does not pay for it.
     onStatus(`${MODEL_NAME}: warming up…`);
-    await ctx.completion({ prompt: prompt('hello'), n_predict: 1, temperature: 0 }); // caches the instructions
+    await ctx.completion({ prompt: prompt('AC 22'), n_predict: 12, temperature: 0, stop: ['<end_of_turn>'] });
     onStatus(`${MODEL_NAME} · on-device · ready`);
     return ctx;
   })().catch((e: unknown) => {
@@ -95,14 +123,9 @@ export function understand(text: string, onStatus: (s: string) => void): Promise
   const run = queue.then(async () => {
     const ctx = await loadGemma(onStatus);
     const t0 = Date.now();
-    const r = await ctx.completion({
-      prompt: prompt(text),
-      json_schema: SCHEMA,
-      stop: ['<end_of_turn>'],
-      n_predict: 160,
-      temperature: 0,
-    });
-    const commands = parseCommands(r.text).filter(valid);
+    // 96 tokens fit MAX_COMMANDS short commands; a longer answer would be cut off and discarded anyway.
+    const r = await ctx.completion({ prompt: prompt(text), n_predict: 96, temperature: 0, stop: ['<end_of_turn>'] });
+    const commands = parseCommands(r.text).filter(valid).slice(0, MAX_COMMANDS);
     return { commands, model: `${MODEL_NAME} (on-device)`, latency_ms: Date.now() - t0 };
   });
   queue = run.catch(() => undefined);
@@ -132,7 +155,7 @@ export function valid(c: unknown): c is Command {
   });
 }
 
-/** The model's JSON array, also when it wraps it in markdown fences or adds text around it; [] if there is none. */
+/** The model's JSON array; [] when the answer is not one (malformed or cut off), as in the backend. */
 export function parseCommands(text: string): unknown[] {
   const start = text.indexOf('[');
   const end = text.lastIndexOf(']');

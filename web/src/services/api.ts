@@ -211,36 +211,49 @@ export interface Recording {
   done: Promise<Blob>;
 }
 
+// The microphone and its analyser stay open between commands: opening them takes seconds on a slow head unit.
+let mic: { stream: MediaStream; ctx: AudioContext; analyser: AnalyserNode } | null = null;
+
+async function openMic() {
+  if (mic && mic.stream.getAudioTracks().some((t) => t.readyState === 'live')) return mic;
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false, channelCount: 1 },
+  });
+  const ctx = new AudioContext();
+  const analyser = ctx.createAnalyser();
+  analyser.fftSize = 1024;
+  ctx.createMediaStreamSource(stream).connect(analyser);
+  mic = { stream, ctx, analyser };
+  return mic;
+}
+
 /**
  * Records one utterance. It ends on `stop()`, after `silenceMs` of quiet once speech was heard, or at `maxMs`.
  * Throws (getUserMedia errors) when the microphone cannot be opened — use `micErrorMessage`.
  */
-export async function recordAudio(maxMs = 8000, silenceMs = 900): Promise<Recording> {
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false, channelCount: 1 },
-  });
-  const rec = new MediaRecorder(stream);
+export async function recordAudio(maxMs = 6000, silenceMs = 700): Promise<Recording> {
+  const { stream, ctx, analyser } = await openMic();
+  if (ctx.state === 'suspended') await ctx.resume();
+  // Speech needs little bandwidth: a small upload is a faster upload from the car.
+  const rec = new MediaRecorder(stream, { audioBitsPerSecond: 24000 });
   const chunks: Blob[] = [];
   rec.ondataavailable = (e) => {
     if (e.data.size) chunks.push(e.data);
   };
 
-  // Energy-based end of speech; the threshold follows the background noise level.
-  const ctx = new AudioContext();
-  const analyser = ctx.createAnalyser();
-  analyser.fftSize = 1024;
-  ctx.createMediaStreamSource(stream).connect(analyser);
+  // Energy-based end of speech. The noise floor follows the quietest level (falls at once, rises slowly), so a
+  // constantly noisy cabin still has a floor and speech is anything clearly above it.
   const buf = new Float32Array(analyser.fftSize);
   let heard = false;
-  let floor = 0.005;
+  let floor = Infinity;
   let quietSince = performance.now();
   const vad = window.setInterval(() => {
     analyser.getFloatTimeDomainData(buf);
     let sum = 0;
     for (const v of buf) sum += v * v;
     const level = Math.sqrt(sum / buf.length);
-    const loud = level > Math.max(0.008, floor * 3);
-    if (!loud) floor = floor * 0.9 + level * 0.1;
+    floor = level < floor ? level : floor + (level - floor) * 0.02;
+    const loud = level > Math.max(0.01, floor * 2.5);
     const now = performance.now();
     if (loud) {
       heard = true;
@@ -251,8 +264,6 @@ export async function recordAudio(maxMs = 8000, silenceMs = 900): Promise<Record
   const done = new Promise<Blob>((resolve) => {
     rec.onstop = () => {
       window.clearInterval(vad);
-      void ctx.close();
-      stream.getTracks().forEach((t) => t.stop());
       resolve(new Blob(chunks, { type: rec.mimeType || 'audio/webm' }));
     };
   });

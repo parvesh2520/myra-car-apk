@@ -52,6 +52,18 @@ const DEVANAGARI = /[ऀ-ॿ]/;
 const OFFLINE: VoiceBackend = { online: false, premium: false, entitlement: null, asrEngine: null, nlu: null };
 let msgSeq = 0;
 
+const secs = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
+
+/** Adds "mic tap -> action" time (with speaking / recognition / understanding parts) to a spoken command's reply. */
+export function withTiming(reply: AssistantReply, t: { tap: number; spoken?: number; heard?: number } | null, now = performance.now()): AssistantReply {
+  if (!t) return reply;
+  const parts = t.spoken !== undefined && t.heard !== undefined
+    ? ` (speaking ${secs(t.spoken - t.tap)} · recognition ${secs(t.heard - t.spoken)} · understanding + action ${secs(now - t.heard)})`
+    : '';
+  const timing = `⏱ ${secs(now - t.tap)} from mic tap to action${parts}.`;
+  return { ...reply, note: [reply.note, timing].filter(Boolean).join(' ') };
+}
+
 /** Small cockpit snapshot so the cloud assistant can resolve "thoda aur" (size-capped by the server). */
 const snapshot = (s: AppState) => ({
   page: s.page,
@@ -80,6 +92,8 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
   backendRef.current = backend;
   const recordingRef = useRef<Recording | null>(null);
   const lastAsrRef = useRef<string | null>(null); // engine that transcribed the pending utterance (car log)
+  // Mic tap -> action timer (performance.now() marks): shown under the reply, then cleared.
+  const timingRef = useRef<{ tap: number; spoken?: number; heard?: number } | null>(null);
   const [voiceInterim, setVoiceInterim] = useState('');
   const [voiceError, setVoiceError] = useState<string | null>(null);
 
@@ -157,7 +171,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
   );
 
   /**
-   * Understanding, in order: in the car app, the on-device model (Gemma 3 1B); otherwise the premium cloud assistant (when the server grants it), then MYRA's local parser,
+   * Understanding, in order: in the car app, the on-device command model; otherwise the premium cloud assistant (when the server grants it), then MYRA's local parser,
    * then the backend's offline NLU for sentences the local parser cannot read. Every action runs through
    * `respond`, MYRA's own executor.
    */
@@ -241,7 +255,9 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
           setStatus('idle');
           return;
         }
-        deliver(await understand(text, current));
+        const reply = await understand(text, current);
+        deliver(withTiming(reply, timingRef.current));
+        timingRef.current = null;
       }, delay);
     },
     [actions, clearRecognitionError, deliver, understand],
@@ -262,6 +278,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
     setStatus('listening');
     const audio = await rec.done;
     recordingRef.current = null;
+    if (timingRef.current) timingRef.current.spoken = performance.now();
     if (audio.size < 1000) {
       setStatus('idle');
       setVoiceError('I didn’t hear anything. Tap the mic and try again.');
@@ -270,9 +287,12 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
     setStatus('thinking');
     setVoiceInterim('Recognising…');
     try {
-      const premium = backendRef.current.premium;
+      // Car app: /transcribe runs Sarvam in translate mode, so any language (or mix) arrives as English, the
+      // only language the on-device command model has to read.
+      const premium = backendRef.current.premium && !inCarApp();
       const t = premium ? await api.cloudTranscribe(audio) : await api.transcribe(audio);
       setVoiceInterim('');
+      if (timingRef.current) timingRef.current.heard = performance.now();
       // Driver recognised from the voice: apply that profile (enrolled voiceprints only).
       lastAsrRef.current = t.engine;
       const who = t.speaker?.profile;
@@ -294,6 +314,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
   }, [actions, refreshBackend, submit]);
 
   const listen = useCallback(async () => {
+    timingRef.current = { tap: performance.now() };
     stopSpeaking();
     actions.ui.setAssistantOpen(true);
     if (inCarApp() && !backendRef.current.online) await refreshBackend(); // cloud speech recognition if reachable now

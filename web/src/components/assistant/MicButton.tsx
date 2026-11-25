@@ -30,7 +30,7 @@ export function MicButton() {
           boxShadow: '0 8px 24px -6px rgb(77 158 255 / 0.6), inset 0 1px 0 rgb(255 255 255 / 0.35)',
         }}
       >
-        {listening && <span className="absolute inset-0 rounded-full border-2 border-accent" style={{ animation: 'ring 1.4s ease-out infinite' }} aria-hidden />}
+        {listening && <span className="keep-motion absolute inset-0 rounded-full border-2 border-accent" style={{ animation: 'ring 1.4s ease-out infinite' }} aria-hidden />}
         <Mic size={26} strokeWidth={2.2} aria-hidden />
       </button>
       <span className="text-[0.6875rem] font-semibold text-ink-2">{listening ? 'Listening' : t('askMyra')}</span>

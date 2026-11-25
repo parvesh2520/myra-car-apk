@@ -9,6 +9,8 @@ the (tied, 168M-parameter) embedding frozen, which keeps the general vocabulary 
 the epoch with the best validation exact match is kept. Teacher-forced exact match equals greedy-decoding
 exact match: the greedy decoder reproduces the answer iff every next-token argmax is right.
 Output: models/llm/cockpit-gemma-270m/ (Hugging Face) and models/llm/cockpit-gemma-270m.q8_0.gguf.
+--english (car app, where Sarvam translates speech to English): trains on train + train_en and keeps the epoch
+with the best exact match on val_en (translate_command_data.py writes the *_en files).
 """
 from __future__ import annotations
 
@@ -84,7 +86,7 @@ def run_batch(model, torch, items, idx, pad_id, device):
     return loss, (wrong_per_row == 0).sum().item()
 
 
-def train(epochs: int, lr: float, batch: int, seed: int) -> dict:
+def train(epochs: int, lr: float, batch: int, seed: int, english: bool = False) -> dict:
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -95,7 +97,8 @@ def train(epochs: int, lr: float, batch: int, seed: int) -> dict:
     model = AutoModelForCausalLM.from_pretrained(BASE, dtype=torch.float32, attn_implementation="eager").to(device)
     model.model.embed_tokens.weight.requires_grad_(False)  # tied with lm_head
     params = [p for p in model.parameters() if p.requires_grad]
-    tr, va = encode(tok, load("train")), encode(tok, load("val"))
+    tr = encode(tok, load("train") + (load("train_en") if english else []))
+    va = encode(tok, load("val_en" if english else "val"))
     pad = tok.pad_token_id if tok.pad_token_id is not None else 0
     steps = epochs * math.ceil(len(tr) / batch)
     opt = torch.optim.AdamW(params, lr=lr, weight_decay=0.0)
@@ -130,7 +133,7 @@ def train(epochs: int, lr: float, batch: int, seed: int) -> dict:
             dst.mkdir(parents=True, exist_ok=True)
             model.save_pretrained(dst)
             copy_base_tokenizer(dst)
-    info = {"base": BASE, "epochs": log, "best_val_exact_match": round(best, 4), "train_rows": len(tr),
+    info = {"base": BASE, "english": english, "epochs": log, "best_val_exact_match": round(best, 4), "train_rows": len(tr),
             "lr": lr, "batch": batch, "frozen": "embed_tokens (tied lm_head)"}
     (dst / "training.json").write_text(json.dumps(info, indent=2), encoding="utf-8")
     return info
@@ -156,6 +159,7 @@ def export_gguf(convert_script: Path) -> Path:
 
 
 def main(argv=None) -> int:
+    global NAME
     ap = argparse.ArgumentParser()
     ap.add_argument("--epochs", type=int, default=3)
     ap.add_argument("--lr", type=float, default=5e-5)
@@ -163,9 +167,12 @@ def main(argv=None) -> int:
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--convert-script", type=Path, required=True, help="llama.cpp convert_hf_to_gguf.py")
     ap.add_argument("--skip-train", action="store_true", help="only export the existing checkpoint")
+    ap.add_argument("--english", action="store_true", help="add train_en, select on val_en (car app)")
+    ap.add_argument("--name", default=NAME, help="output model name under models/llm/")
     args = ap.parse_args(argv)
+    NAME = args.name
     if not args.skip_train:
-        print(json.dumps(train(args.epochs, args.lr, args.batch, args.seed), indent=2))
+        print(json.dumps(train(args.epochs, args.lr, args.batch, args.seed, args.english), indent=2))
     print("wrote", export_gguf(args.convert_script))
     return 0
 

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useActions } from '../../context/AppStore';
 import { useMotionSense } from '../../hooks/useMotionSense';
-import { motionRuntime, motionSimulator, motionTelemetry, type DeviceMotionStatus, type Manoeuvre } from '../../services/motionSense';
+import { Play } from 'lucide-react';
+import { motionRuntime, motionSimulator, motionTelemetry, startMotionDemo, type DeviceMotionStatus, type Manoeuvre } from '../../services/motionSense';
 import { deviceMotionAvailability, requestDeviceMotionPermission } from '../../services/motionSensors';
 import { Toggle } from '../../components/controls/Toggle';
 import { Segmented } from '../../components/controls/Segmented';
@@ -20,7 +21,7 @@ const DEVICE_HINT: Record<DeviceMotionStatus, string> = {
 
 const MANOEUVRES: { id: Manoeuvre; label: string }[] = [
   { id: 'accelerate', label: 'Accelerate' },
-  { id: 'brake', label: 'Brake' },
+  { id: 'brake', label: 'Sudden brake' },
   { id: 'left', label: 'Left turn' },
   { id: 'right', label: 'Right turn' },
   { id: 'bump', label: 'Bump' },
@@ -55,35 +56,56 @@ export function MotionSenseSection() {
 
   return (
     <>
+      <section className="card p-5 mb-4" aria-label="MYRA MotionSense">
+        <div className="flex items-start justify-between gap-6">
+          <div className="min-w-0">
+            <h2 className="label">MYRA MotionSense</h2>
+            <p className="text-xl font-semibold text-ink mt-1.5">Motion sickness cues</p>
+            <p className="text-xs text-ink-2 mt-1 max-w-[46ch]">
+              {suppressed && ms.enabled
+                ? 'Paused while driving — turn on Passenger mode to show cues to a passenger.'
+                : 'Dots at the screen edges move with acceleration, braking, turns and bumps, so what passengers see matches what they feel.'}
+            </p>
+          </div>
+          <Toggle checked={ms.enabled} onChange={(v) => set({ enabled: v })} label="MotionSense" />
+        </div>
+        <div className="mt-4 flex items-end gap-4">
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-ink-2 mb-1.5">Mode</p>
+            <Segmented<MotionAdaptation>
+              label="MotionSense mode"
+              value={ms.adaptation}
+              onChange={(v) => set({ adaptation: v })}
+              className="w-full max-w-[340px]"
+              options={[
+                { value: 'adaptive', label: 'Automatic' },
+                { value: 'manual', label: 'Manual' },
+              ]}
+            />
+            <p className="text-xs text-ink-3 mt-1.5">
+              {ms.adaptation === 'adaptive'
+                ? 'Dots grow in when the car moves and shrink away when the ride is steady.'
+                : 'Dots stay fully visible at the selected intensity.'}
+            </p>
+          </div>
+          <button type="button" className="btn btn-primary !min-h-12 !px-6 shrink-0" onClick={startMotionDemo}>
+            <Play size={18} aria-hidden /> Run demo
+          </button>
+        </div>
+      </section>
+
       <Group
-        title="MYRA MotionSense"
-        note={`Subtle dots at the screen edges move with acceleration, braking, turns and bumps, so what passengers see matches what they feel. A comfort aid — not a medical treatment, and it may not help everyone.${
+        title="Cue settings"
+        note={`A comfort aid — not a medical treatment, and it may not help everyone.${
           reducedMotion ? ' Reduce motion is on: the dots stay still and show direction by brightness instead.' : ''
         }`}
       >
-        <Setting
-          label="MotionSense"
-          hint={suppressed && ms.enabled ? 'Paused while driving — turn on Passenger mode to show cues to a passenger' : 'Reduce motion discomfort with adaptive visual motion cues.'}
-        >
-          <Toggle checked={ms.enabled} onChange={(v) => set({ enabled: v })} label="MotionSense" />
-        </Setting>
         <Setting label="Intensity" hint="How far and how visibly the cues move">
           <Segmented<MotionIntensity>
             label="Motion cue intensity"
             value={ms.intensity}
             onChange={(v) => set({ intensity: v })}
             options={[{ value: 'low', label: 'Low' }, { value: 'medium', label: 'Medium' }, { value: 'high', label: 'High' }]}
-          />
-        </Setting>
-        <Setting
-          label="Adaptation"
-          hint={ms.adaptation === 'adaptive' ? 'Cue movement scales with the detected motion and fades when the ride is steady' : 'Uses the selected intensity consistently'}
-        >
-          <Segmented<MotionAdaptation>
-            label="Adaptation"
-            value={ms.adaptation}
-            onChange={(v) => set({ adaptation: v })}
-            options={[{ value: 'adaptive', label: 'Adaptive' }, { value: 'manual', label: 'Manual' }]}
           />
         </Setting>
         <Setting label="Passenger mode" hint="Show cues while driving for a passenger. Off keeps the driver’s primary display clear.">
@@ -102,7 +124,7 @@ export function MotionSenseSection() {
         </Setting>
       </Group>
 
-      <Group title="Preview" note="Simulated motion runs through the same processing as real sensor input.">
+      <Group title="Preview" note="Simulated vehicle motion — engine power, braking, cornering and suspension — runs through the same processing as real sensor input.">
         <Setting label="Preview cues" hint="See how the cues behave while stationary. Device sensors stay off during preview.">
           <button
             type="button"

@@ -439,7 +439,32 @@ button:disabled {
   animation: rise-in 320ms var(--ease-out-soft) both;
 }
 
-[data-reduce-motion='true'] *,
+/* MotionSense cue dots: dark fill with a light ring so they read on any background, like iPhone Vehicle Motion Cues.
+   Positioned, scaled and faded per frame by the overlay's dot flow. */
+.ms-dot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 18px;
+  height: 18px;
+  margin: -9px;
+  border-radius: 999px;
+  background: rgb(14 19 27 / 0.82);
+  box-shadow: 0 0 0 1.5px rgb(255 255 255 / 0.85), 0 2px 8px rgb(0 0 0 / 0.35);
+  opacity: 0;
+  will-change: transform, opacity;
+  transition: background-color 300ms, box-shadow 300ms;
+}
+/* Demo: dots are the subject — bright, ringed in the accent colour and glowing over the blurred interface. */
+[data-motionsense][data-demo='true'] .ms-dot {
+  background: #fff;
+  box-shadow:
+    0 0 0 3px var(--color-accent),
+    0 0 22px 6px color-mix(in oklab, var(--color-accent) 60%, transparent);
+}
+
+/* .keep-motion: the mic and voice orb keep animating, so the driver can see MYRA is listening. */
+[data-reduce-motion='true'] *:not(.keep-motion),
 [data-reduce-motion='true'] *::before,
 [data-reduce-motion='true'] *::after {
   animation-duration: 1ms !important;
@@ -455,4 +480,10 @@ button:disabled {
     animation-iteration-count: 1 !important;
     transition-duration: 1ms !important;
   }
+}
+
+/* Car head units have weak GPUs: blur is the most expensive effect, so it is off in the car app. */
+[data-car='true'] * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }

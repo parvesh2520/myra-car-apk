@@ -11,7 +11,7 @@ export function VoiceOrb({ status, size = 96 }: { status: AssistantStatus; size?
         [0, 0.55, 1.1].map((d) => (
           <span
             key={d}
-            className="absolute inset-0 rounded-full border border-accent/60"
+            className="keep-motion absolute inset-0 rounded-full border border-accent/60"
             style={{ animation: `ring 1.8s ${d}s ease-out infinite` }}
           />
         ))}
@@ -40,7 +40,7 @@ export function VoiceOrb({ status, size = 96 }: { status: AssistantStatus; size?
         {[0.9, 0.5, 1, 0.65, 0.8].map((h, i) => (
           <span
             key={i}
-            className="w-[3px] rounded-full bg-white/90 origin-center"
+            className="keep-motion w-[3px] rounded-full bg-white/90 origin-center"
             style={{
               height: `${h * 100}%`,
               animation: listening || speaking ? `wave ${0.7 + i * 0.12}s ${i * 0.08}s ease-in-out infinite` : undefined,

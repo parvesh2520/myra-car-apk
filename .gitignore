@@ -5,3 +5,4 @@ __pycache__/
 .expo/
 dist/
 gradle-build.log
+backend/*.log

@@ -5,7 +5,7 @@ import { activeProfile } from '../../context/actions';
 import { useClock } from '../../hooks/useClock';
 import { useT } from '../../hooks/useT';
 import { useMotionSense } from '../../hooks/useMotionSense';
-import { motionRuntime } from '../../services/motionSense';
+import { motionRuntime, stopMotionDemo } from '../../services/motionSense';
 import { DEMO_WEATHER } from '../../data/services';
 import { formatClock, formatTemp, initials } from '../../services/format';
 import { MyraMark } from './MyraMark';
@@ -100,6 +100,7 @@ function MotionSenseChip() {
   const { active, runtime, ms } = useMotionSense();
   if (!active) return null;
   const off = () => {
+    if (runtime.demo) return stopMotionDemo();
     if (runtime.preview) return motionRuntime.set({ preview: false });
     actions.settings.patch({ motionSense: { ...ms, enabled: false } });
     actions.ui.toast('MotionSense turned off', 'info');
@@ -107,7 +108,7 @@ function MotionSenseChip() {
   return (
     <button type="button" onClick={off} className="chip !min-h-9 text-accent" aria-label={runtime.preview ? 'Exit MotionSense preview' : 'Turn off MotionSense'} title="MotionSense is on — tap to turn off">
       <Waves size={16} aria-hidden />
-      {runtime.preview ? 'Preview' : 'MotionSense'}
+      {runtime.demo ? 'Demo' : runtime.preview ? 'Preview' : 'MotionSense'}
     </button>
   );
 }

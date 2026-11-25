@@ -1,0 +1,27 @@
+diff --git a/node_modules/llama.rn/android/build.gradle b/node_modules/llama.rn/android/build.gradle
+--- a/node_modules/llama.rn/android/build.gradle
++++ b/node_modules/llama.rn/android/build.gradle
+@@ -96,7 +96,7 @@ def getExtOrIntegerDefault(name) {
+ def reactNativeArchitectures() {
+   def value = project.getProperties().get("reactNativeArchitectures")
+   def archs = value ? value.split(",") : ["x86_64", "arm64-v8a"]
+-  return archs.findAll { it != "armeabi-v7a" && it != "x86" } // Not building for 32-bit architectures
++  return archs.findAll { it != "x86" } // MYRA: armeabi-v7a enabled for 32-bit car head units (generic llama.cpp build)
+ }
+ 
+ // Detect RN Version, ref from:
+diff --git a/node_modules/llama.rn/android/src/main/java/com/rnllama/RNLlama.java b/node_modules/llama.rn/android/src/main/java/com/rnllama/RNLlama.java
+--- a/node_modules/llama.rn/android/src/main/java/com/rnllama/RNLlama.java
++++ b/node_modules/llama.rn/android/src/main/java/com/rnllama/RNLlama.java
+@@ -174,10 +174,7 @@ public class RNLlama {
+   public static synchronized boolean loadNative(ReactApplicationContext context) {
+     if (libsLoaded) return true;
+ 
+-    if (Build.SUPPORTED_64_BIT_ABIS.length == 0) {
+-      Log.w(TAG, "Only 64-bit architectures are supported");
+-      return false;
+-    }
++    // MYRA: 32-bit head units load the generic rnllama_jni build (see build.gradle).
+ 
+     // Extract HTP libraries from assets before loading native library
+     try {

@@ -25,11 +25,12 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def kind(row: dict) -> str:
-    if row["source"] == "multi":
+    source = row["source"].removeprefix("en:")  # English copies (translate_command_data.py) keep their kind
+    if source == "multi":
         return "multi_command"
     if not row["intents"]:
         return "no_command"
-    return "handwritten_unseen_phrasing" if row["source"].startswith("handwritten") else "nlu_v2"
+    return "handwritten_unseen_phrasing" if source.startswith("handwritten") else "nlu_v2"
 
 
 def score(rows: list[dict], answers: list[list[dict]]) -> dict:

@@ -3,22 +3,44 @@
  * on-device model. The UI sends {id, type: 'understand', text}; the answer goes back via window.__myraNative.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { PermissionsAndroid, StyleSheet, Text, View } from 'react-native';
+import { AppState, PermissionsAndroid, Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
-import { loadGemma, understand } from './src/gemma';
+import { downloadEnabled, loadGemma, modelInstalled, setDownloadEnabled, understand } from './src/gemma';
+import MyraSystem from './modules/myra-system';
 
 const UI = 'file:///android_asset/web/index.html';
+const FREE_MEMORY_EVERY_MS = 60000;
 
 export default function App() {
   // Explicit generic: the package types default P to undefined, which TS turns into never props.
   const web = useRef<WebView<object>>(null);
   const [modelStatus, setModelStatus] = useState('');
+  const [memNote, setMemNote] = useState('');
+  const [download, setDownload] = useState(downloadEnabled);
 
   useEffect(() => {
     void PermissionsAndroid.requestMultiple([PermissionsAndroid.PERMISSIONS.RECORD_AUDIO, PermissionsAndroid.PERMISSIONS.CAMERA]);
-    loadGemma(setModelStatus).catch(() => undefined); // retried on the first command
+    // Low-end head unit (1 GB RAM): end other apps' background processes before the model loads, whenever MYRA
+    // comes back to the screen, and every minute while it runs, so apps that restart do not keep their RAM.
+    const freeMemory = async () => {
+      const mem = await MyraSystem?.freeMemory().catch(() => null);
+      if (mem) setMemNote(` · ${mem.afterMb} MB free`);
+    };
+    void freeMemory().then(() => loadGemma(setModelStatus).catch(() => undefined)); // retried on the first command
+    const timer = setInterval(() => void freeMemory(), FREE_MEMORY_EVERY_MS);
+    const sub = AppState.addEventListener('change', (s) => s === 'active' && void freeMemory());
+    return () => {
+      clearInterval(timer);
+      sub.remove();
+    };
   }, []);
+
+  // Tapping the badge switches the cloud download off (pauses it) or on (starts or resumes it).
+  const toggleDownload = useCallback(() => {
+    if (modelInstalled()) return;
+    void setDownloadEnabled(!download, setModelStatus).then(setDownload);
+  }, [download]);
 
   const onMessage = useCallback(async (e: WebViewMessageEvent) => {
     let msg: { id?: unknown; type?: unknown; text?: unknown };
@@ -51,10 +73,18 @@ export default function App() {
         javaScriptEnabled
         domStorageEnabled
         mediaPlaybackRequiresUserAction={false}
+        cacheEnabled={false}
+        // Android ends the WebView's renderer when RAM runs out (the screen turns white): load the UI again.
+        onRenderProcessGone={() => web.current?.reload()}
         mediaCapturePermissionGrantType="grant"
         onMessage={onMessage}
       />
-      {modelStatus ? <Text style={styles.badge}>{modelStatus}</Text> : null}
+      {modelStatus ? (
+        <Pressable onPress={toggleDownload} style={styles.badge} accessibilityRole="button"
+          accessibilityLabel={`${modelStatus}. Model download ${download ? 'on' : 'off'}.`}>
+          <Text style={styles.badgeText}>{modelStatus}{memNote}</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -69,7 +99,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 8,
     backgroundColor: 'rgba(5,8,13,0.8)',
-    color: '#9fb3c8',
-    fontSize: 12,
   },
+  badgeText: { color: '#9fb3c8', fontSize: 12 },
 });

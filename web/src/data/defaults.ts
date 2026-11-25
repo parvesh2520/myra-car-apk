@@ -1,5 +1,6 @@
 import type { AppState, DriverProfile, SettingsState } from '../types';
 import { seedCallLog } from './contacts';
+import { inCarApp } from '../services/carModel';
 
 /** Demo outside temperature used by climate suggestions (not a live reading). */
 export const OUTSIDE_TEMP_C = 31;
@@ -52,7 +53,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
   clock24h: true,
   largeText: false,
   highContrast: false,
-  reduceMotion: false,
+  reduceMotion: inCarApp(), // car head units are slow: no animations by default
   speakResponses: true,
   voiceRate: 1,
   showVoiceChips: true,

@@ -12,7 +12,8 @@ export default defineConfig(({ mode }) => {
   const car = mode === 'car';
   return {
     base: car ? './' : '/',
-    build: car ? { outDir: '../app/web-dist', emptyOutDir: true } : undefined,
+    // Older head units ship an old Android System WebView: lower the JS/CSS syntax targets.
+    build: car ? { outDir: '../app/web-dist', emptyOutDir: true, target: ['es2019', 'chrome74'], cssTarget: 'chrome74' } : undefined,
     plugins: [react(), tailwindcss(), ...(phone ? [basicSsl()] : [])],
     // Development: /api goes to the FastAPI backend (uvicorn on :8000). Set VITE_API_URL to call another host directly.
     server: { port: 5173, host: phone || undefined, proxy: { '/api': 'http://127.0.0.1:8000' } },

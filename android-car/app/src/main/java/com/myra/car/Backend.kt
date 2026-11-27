@@ -74,32 +74,6 @@ class Backend : Closeable {
         }
     }
 
-    /** Up to 3 Google Places for [query], biased to the car's position when known. Throws with a readable message. */
-    fun places(query: String, lat: Double?, lng: Double?): List<Place> {
-        val body = JSONObject().put("query", query.take(100))
-        if (lat != null && lng != null) body.put("near", JSONObject().put("lat", lat).put("lng", lng))
-        val c = connect("nav/places")
-        try {
-            c.requestMethod = "POST"
-            c.doOutput = true
-            c.connectTimeout = 10_000
-            c.readTimeout = 15_000
-            c.setRequestProperty("Content-Type", "application/json")
-            c.outputStream.use { it.write(body.toString().toByteArray()) }
-            val code = c.responseCode
-            val text = (if (code in 200..299) c.inputStream else c.errorStream)?.bufferedReader()?.readText().orEmpty()
-            if (code == 503) error("Place search isn't set up on the server yet (GOOGLE_MAPS_API_KEY).")
-            if (code !in 200..299) error(runCatching { JSONObject(text).getJSONObject("detail").getString("message") }
-                .getOrDefault("Place search failed (HTTP $code)."))
-            val arr = JSONObject(text).optJSONArray("places") ?: JSONArray()
-            return List(arr.length()) { arr.getJSONObject(it) }.map {
-                Place(it.optString("name"), it.optString("address"), it.getDouble("lat"), it.getDouble("lng"))
-            }
-        } finally {
-            disconnect(c)
-        }
-    }
-
     /** Keeps Render's free instance awake and the HTTPS connection warm. True when the server answered. */
     fun ping(): Boolean = runCatching {
         val c = connect("health")

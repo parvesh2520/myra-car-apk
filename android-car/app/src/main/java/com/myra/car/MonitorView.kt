@@ -7,280 +7,318 @@ import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.RectF
-import android.media.AudioAttributes
-import android.media.AudioFormat
-import android.media.AudioTrack
+import android.net.ConnectivityManager
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.text.InputType
 import android.util.Log
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.Spinner
 import android.widget.TextView
 import java.io.IOException
+import java.io.EOFException
+import java.net.ConnectException
+import java.net.NoRouteToHostException
 import java.net.SocketTimeoutException
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.atomic.AtomicReference
-import kotlin.math.PI
-import kotlin.math.sin
 
-/** A decoded, upright camera frame shared by the screen and the analysis; recycled once both let go. */
-private class Shot(val bitmap: Bitmap, val t: Long) {
-    private val refs = AtomicInteger(2)
-    fun release() { if (refs.decrementAndGet() == 0) bitmap.recycle() }
+internal enum class MonitorMode(val title: String, val camera: String, val analysis: String) {
+    DROWSINESS("Drowsiness meter", "front", "Face analysis"),
+    SAFE_EXIT("Safe Exit", "rear", "Object analysis"),
 }
 
-/**
- * Drowsiness meter, native: the phone streams its front camera (~30 fps) and every received frame is shown.
- * Face analysis runs on its own thread on the newest frame each time it is free, so the video never waits for it;
- * on a head unit fast enough for 30 analyses a second, every frame is analysed. The tracker uses the phone's capture
- * times, so blink and closure durations stay right at any analysis rate.
- */
-internal class MonitorView(context: Context) : LinearLayout(context) {
-    val analysis = NativeFaceAnalysis(context.applicationContext)
+internal class CameraPairing(var code: String = "")
+
+internal class MonitorView(context: Context, private val mode: MonitorMode, private val pairing: CameraPairing) : LinearLayout(context) {
     private val main = Handler(Looper.getMainLooper())
+    private val worker = Executors.newSingleThreadExecutor()
     private val prefs = context.getSharedPreferences("meter", Context.MODE_PRIVATE)
 
-    private val host = field("Phone IP", 150, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI).apply { setText(prefs.getString("host", "")) }
-    private val code = field("Camera code", 120, InputType.TYPE_CLASS_NUMBER)
-    private val start = button("Start meter") { startMeter() }
-    private val stop = button("Stop") { stopMeter("Meter stopped.") }
-    private val status = label("Start Myra Phone Camera on the phone, then enter the IP and code shown there.", 14f, R.color.ink2)
+    private val host = field("Phone IP", 150, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI).apply {
+        setText(prefs.getString("host", ""))
+    }
+    private val code = field("Camera code", 140, InputType.TYPE_CLASS_NUMBER).apply { setText(pairing.code) }
+    private val start = button("Start", primary = true) { startMonitor() }
+    private val stop = button("Stop") { stopMonitor("Camera stopped.") }
+    private val status = label("Share the ${mode.camera} camera on your phone, then enter its IP and camera code.", 14f, R.color.ink2)
     private val preview = FrameView(context)
-    private val level = label("Meter off", 20f, R.color.accent).apply { setTypeface(typeface, android.graphics.Typeface.BOLD) }
-    private val values = listOf("Alertness", "Eyes closed now", "Eyes closed over 30 s", "Blinks over 60 s", "Yawns over 3 min",
-        "Video", "Face analysis").associateWith { label("—", 14f, R.color.ink) }
-
+    private val side = Spinner(context, Spinner.MODE_DIALOG).apply {
+        prompt = "Door zone in the camera view"
+        adapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, listOf("Left door zone", "Right door zone")).apply {
+            setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        }
+        setSelection(prefs.getInt("doorSide", DoorSide.RIGHT.ordinal).coerceIn(DoorSide.entries.indices))
+        minimumHeight = dp(40)
+    }
+    private val level = label("Camera off", 20f, R.color.accent).apply { setTypeface(typeface, android.graphics.Typeface.BOLD) }
+    private val details = (if (mode == MonitorMode.DROWSINESS) listOf(
+        "Alertness score", "Eyes closed now", "Eyes closed over 30 s",
+    ) else listOf("Objects detected")).associateWith { label("—", 14f, R.color.ink) }
     private var session: Session? = null
+    private var tone: ToneGenerator? = null
 
     init {
         orientation = VERTICAL
         setBackgroundColor(context.getColor(R.color.bg))
-        setPadding(dp(14), dp(10), dp(14), dp(10))
-        addView(label("Drowsiness meter", 20f, R.color.ink).apply { setTypeface(typeface, android.graphics.Typeface.BOLD) })
+        setPadding(dp(4), dp(8), dp(16), dp(16))
+        addView(label(mode.title, 22f, R.color.ink).apply { typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL) })
         addView(LinearLayout(context).apply {
             gravity = Gravity.CENTER_VERTICAL
-            addView(host); addView(code); addView(start); addView(stop)
+            setPadding(0, dp(10), 0, 0)
+            addView(host)
+            addView(code)
+            addView(start)
+            addView(stop)
         })
         addView(status.apply { setPadding(0, dp(4), 0, dp(8)) })
         addView(LinearLayout(context).apply {
             addView(preview.apply { setBackgroundResource(R.drawable.panel) }, LayoutParams(0, -1, 3f))
-            addView(LinearLayout(context).apply {
-                orientation = VERTICAL
+            addView(ScrollView(context).apply {
                 setBackgroundResource(R.drawable.panel)
-                setPadding(dp(12), dp(12), dp(12), dp(12))
-                addView(level)
-                for ((name, value) in values) addView(LinearLayout(context).apply {
-                    setPadding(0, dp(5), 0, dp(5))
-                    addView(label(name, 14f, R.color.ink2), LayoutParams(0, -2, 1f))
-                    addView(value)
-                })
+                addView(LinearLayout(context).apply {
+                    orientation = VERTICAL
+                    setPadding(dp(12), dp(12), dp(12), dp(12))
+                    addView(level)
+                    addView(label("Parked demonstration", 12f, R.color.ink2))
+                    if (mode == MonitorMode.SAFE_EXIT) {
+                        addView(side, LayoutParams(-1, -2))
+                        addView(label("Check your surroundings before opening.", 12f, R.color.ink2))
+                    }
+                    for ((name, value) in details) addView(metric(name, value))
+                }, -1, -2)
             }, LayoutParams(0, -1, 2f).apply { marginStart = dp(12) })
         }, LayoutParams(-1, 0, 1f))
+        if (mode == MonitorMode.SAFE_EXIT) preview.overlay(DoorSide.entries[side.selectedItemPosition].zone, null)
         stop.isEnabled = false
     }
 
-    /** One connection to the phone: a receiver thread, an analysis thread and the readings they feed. */
-    private inner class Session(val phone: PhoneEndpoint) {
-        val running = AtomicBoolean(true)
-        @Volatile var stream: PhoneStream? = null
-        val toShow = AtomicReference<Shot?>()
-        val toAnalyse = AtomicReference<Shot?>()
-        private val wake = Object()
-        val drawPosted = AtomicBoolean(false)
-        var tracker = DrowsinessTracker()
-        var lastBeep = 0L
-        var received = 0; var analysed = 0; var analysisMs = 0L; var second = SystemClock.elapsedRealtime()
+    private data class Reading(
+        val drowsiness: DrowsinessTracker.Metrics? = null,
+        val exit: ExitReading? = null,
+        val facePresent: Boolean = false,
+    )
 
-        fun start() {
-            Thread(::receive, "meter-receive").apply { priority = Thread.MAX_PRIORITY }.start()
-            Thread(::analyse, "meter-analysis").start()
-        }
+    private class AnalysisError(cause: Exception) : RuntimeException(cause)
+
+    private inner class Session(val phone: PhoneEndpoint, val door: DoorSide) {
+        private val running = AtomicBoolean(true)
+        @Volatile private var stream: PhoneStream? = null
+
+        fun start() = worker.execute(::run) // one session's models at a time on the head unit's small memory
 
         fun close() {
             running.set(false)
             runCatching { stream?.close() }
-            synchronized(wake) { wake.notifyAll() }
-            toShow.getAndSet(null)?.release()
-            toAnalyse.getAndSet(null)?.release()
         }
 
-        private fun receive() = try { receiveLoop() } finally {
-            // Frames handed over after close() would otherwise never be recycled.
-            if (!running.get()) { toShow.getAndSet(null)?.release(); toAnalyse.getAndSet(null)?.release() }
-        }
-
-        private fun receiveLoop() {
+        /** Ask the phone for one photo, analyze it, show it, wait out the rest of [SNAPSHOT_MS], repeat. */
+        private fun run() {
+            var face: NativeFaceAnalysis? = null
+            var objects: NativeExitAnalysis? = null
             var failingSince = 0L
-            while (running.get()) {
-                try {
-                    val s = PhoneStream(phone)
-                    stream = s
-                    if (!running.get()) { s.close(); break }
-                    main.post { if (session === this) status.text = "Phone camera connected · analysis running on this head unit" }
-                    failingSince = 0
-                    while (running.get()) {
-                        val frame = s.next()
-                        val shot = decode(frame) ?: continue
-                        failingSince = 0
-                        toAnalyse.getAndSet(shot)?.release() // an older frame the analysis never got to
-                        synchronized(wake) { wake.notifyAll() }
-                        toShow.getAndSet(shot)?.release()
-                        if (drawPosted.compareAndSet(false, true)) main.post(::draw)
+            val connectivity = context.getSystemService(ConnectivityManager::class.java)
+            try {
+                while (running.get()) {
+                    var paired = false
+                    var firstPhoto = true
+                    try {
+                        val preferred = runCatching { cameraNetwork(connectivity, phone) }.getOrNull()
+                        val connection = if (preferred == null) PhoneStream(phone) else try {
+                            PhoneStream(phone, preferred)
+                        } catch (error: IOException) {
+                            if (!running.get()) throw error
+                            PhoneStream(phone)
+                        }
+                        stream = connection
+                        if (!running.get()) break
+                        paired = true
+                        // A new connection may come from a restarted phone clock, so tracking starts over.
+                        val drowsiness = DrowsinessTracker()
+                        val safeExit = SafeExitTracker(door.zone)
+                        var lastBeep: Long? = null
+                        if (failingSince == 0L) post { status.text = "Phone paired. Waiting for the first ${mode.camera} camera photo…" }
+                        while (running.get()) {
+                            val asked = SystemClock.elapsedRealtime()
+                            val frame = connection.next()
+                            val bitmap = BitmapFactory.decodeByteArray(frame.jpeg, 0, frame.jpeg.size)
+                                ?: throw IOException("The phone sent an unreadable photo.")
+                            val image = CameraImage(bitmap, frame.rotation)
+                            failingSince = 0
+                            val reading = try {
+                                if (mode == MonitorMode.DROWSINESS) {
+                                    val analysis = face ?: NativeFaceAnalysis(context.applicationContext).also { face = it }
+                                    val result = analysis.read(image)
+                                    Reading(drowsiness.update(frame.id, result.face, result.eyesClosed, result.jawOpen), facePresent = result.face)
+                                } else {
+                                    val detector = objects ?: NativeExitAnalysis(context.applicationContext).also { objects = it }
+                                    Reading(exit = safeExit.update(frame.id, detector.read(image)))
+                                }
+                            } catch (e: Exception) {
+                                bitmap.recycle()
+                                throw AnalysisError(e)
+                            }
+                            val interval = when (reading.drowsiness?.level) {
+                                DrowsinessTracker.Level.ASLEEP -> 1L // every photo
+                                DrowsinessTracker.Level.DROWSY -> 4_000L
+                                else -> 0L
+                            }
+                            val fatigueAlert = reading.facePresent && interval > 0 && (lastBeep?.let { frame.id - it >= interval } ?: true)
+                            if (fatigueAlert) lastBeep = frame.id
+                            val beepNow = fatigueAlert || reading.exit?.alert == true
+                            val first = firstPhoto
+                            firstPhoto = false
+                            val queued = post {
+                                if (first) status.text = "Phone camera connected · the car analyzes one photo at a time"
+                                preview.show(image)
+                                reading.drowsiness?.let { if (reading.facePresent) showDrowsiness(it) else showState("Face out of view") }
+                                reading.exit?.let { showExit(it); preview.overlay(door.zone, it) }
+                                if (beepNow) beep(reading.drowsiness?.level == DrowsinessTracker.Level.ASLEEP || reading.exit != null)
+                            }
+                            if (!queued) bitmap.recycle()
+                            val wait = SNAPSHOT_MS - (SystemClock.elapsedRealtime() - asked)
+                            if (wait > 0 && running.get()) Thread.sleep(wait)
+                        }
+                    } catch (e: IllegalStateException) {
+                        fail(e.message ?: "Check the camera code.")
+                        return
+                    } catch (error: IOException) {
+                        if (!running.get()) break
+                        val now = SystemClock.elapsedRealtime()
+                        if (failingSince == 0L) failingSince = now
+                        val problem = when {
+                            paired && error is EOFException -> "The phone stopped sharing. Reopen Myra Phone Camera and check its code."
+                            paired && firstPhoto -> "Phone paired, but no photo arrived. Keep the camera preview open and check the connection."
+                            paired -> "Phone paired, but photos stopped. Keep the camera preview open and check the connection."
+                            error is NoRouteToHostException -> "No route to the phone. Connect the car to the phone's hotspot or USB tethering."
+                            error is ConnectException -> "Phone refused the connection. Start sharing and check the IP and port shown."
+                            error is SocketTimeoutException -> "Phone did not answer. Check that the car is on the phone's hotspot or USB tethering and verify the IP."
+                            else -> error.message ?: "Can't reach the phone camera."
+                        }
+                        if (now - failingSince > 6_000) {
+                            fail(problem)
+                            return
+                        }
+                        post {
+                            status.text = "$problem Retrying…"
+                            showState("Signal interrupted")
+                            preview.show(null)
+                        }
+                        Thread.sleep(450)
+                    } finally {
+                        runCatching { stream?.close() }
+                        stream = null
                     }
-                } catch (e: IllegalStateException) {
-                    return fail(e.message ?: "Check the camera code on the phone.")
-                } catch (e: IOException) {
-                    if (!running.get()) break
-                    val now = SystemClock.elapsedRealtime()
-                    if (failingSince == 0L) failingSince = now
-                    if (now - failingSince > 15_000) return fail(if (e is SocketTimeoutException)
-                        "The phone camera timed out. Check that the car is connected to the phone hotspot or USB tethering."
-                        else "Can't reach the phone camera. Check the Phone IP and keep Myra Phone Camera open.")
-                    main.post { if (session === this) interrupted() }
-                    Thread.sleep(450)
-                } finally {
-                    stream?.close()
-                    stream = null
                 }
+            } catch (e: InterruptedException) {
+            } catch (e: Throwable) {
+                if (e is VirtualMachineError) throw e
+                val cause = (e as? AnalysisError)?.cause ?: e
+                Log.e("MyraCameraAnalysis", "${mode.analysis} failed", cause)
+                fail("${mode.analysis} unavailable: ${cause.message.orEmpty().take(150).ifBlank { cause.javaClass.simpleName }}")
+            } finally {
+                face?.close()
+                objects?.close()
             }
         }
 
-        private fun decode(frame: CameraFrame): Shot? {
-            val jpeg = BitmapFactory.decodeByteArray(frame.jpeg, 0, frame.jpeg.size) ?: return null
-            val upright = if (frame.rotation == 0) jpeg else Bitmap.createBitmap(jpeg, 0, 0, jpeg.width, jpeg.height,
-                Matrix().apply { postRotate(frame.rotation.toFloat()) }, false).also { jpeg.recycle() }
-            return Shot(upright, frame.id)
-        }
-
-        private fun analyse() {
-            while (running.get()) {
-                val shot = toAnalyse.getAndSet(null) ?: run {
-                    synchronized(wake) { if (running.get() && toAnalyse.get() == null) wake.wait(500) }
-                    null
-                } ?: continue
-                val t0 = SystemClock.elapsedRealtime()
-                val reading = try {
-                    analysis.read(shot.bitmap)
-                } catch (e: Throwable) {
-                    if (e is VirtualMachineError) throw e
-                    if (!running.get()) return
-                    Log.e("MyraMonitor", "Face analysis failed on the car", e)
-                    return fail("Camera connected. Face analysis failed on the car: ${e.javaClass.simpleName}: ${e.message.orEmpty().take(160)}")
-                } finally {
-                    shot.release()
-                }
-                val ms = SystemClock.elapsedRealtime() - t0
-                main.post { if (session === this) onReading(shot.t, reading, ms) }
-            }
-        }
-
-        private fun draw() {
-            drawPosted.set(false)
-            val shot = toShow.getAndSet(null) ?: return
-            if (session !== this) return shot.release()
-            preview.show(shot)
-            received++
-            tick()
-        }
-
-        fun onReading(t: Long, r: FaceReading, ms: Long) {
-            analysed++
-            analysisMs += ms
-            val m = tracker.update(t, r.face, r.eyesClosed, r.jawOpen)
-            showReadings(if (r.face) m else null, "Face out of view")
-            val now = SystemClock.elapsedRealtime()
-            val every = when (m.level) { DrowsinessTracker.Level.ASLEEP -> 450L; DrowsinessTracker.Level.DROWSY -> 4000L; else -> 0L }
-            if (r.face && every > 0 && now - lastBeep >= every) {
-                beep(if (m.level == DrowsinessTracker.Level.ASLEEP) 1050.0 else 660.0)
-                lastBeep = now
-            }
-            tick()
-        }
-
-        private fun tick() {
-            val now = SystemClock.elapsedRealtime()
-            if (now - second < 1000) return
-            val s = (now - second) / 1000.0
-            values.getValue("Video").text = "%.0f fps".format(received / s)
-            values.getValue("Face analysis").text = if (analysed == 0) "—" else "%.0f fps · %d ms".format(analysed / s, analysisMs / analysed)
-            received = 0; analysed = 0; analysisMs = 0; second = now
-        }
-
-        /** The video stopped: readings from before the gap would be wrong after it. */
-        fun interrupted() {
-            tracker = DrowsinessTracker()
-            analysis.reset()
-            preview.show(null)
-            status.text = "Waiting for the phone camera. Retrying…"
-            showReadings(null, "Signal interrupted")
-        }
+        /** Runs [block] on the main thread while this session is still showing; false if it could not be queued. */
+        private fun post(block: () -> Unit) = main.post { if (session === this) block() }
 
         private fun fail(message: String) {
-            main.post { if (session === this) stopMeter(message) }
+            main.post { if (session === this) stopMonitor(message) }
         }
     }
 
-    private fun startMeter() {
+    private fun startMonitor() {
         if (session != null) return
-        val phone = PhoneEndpoint.parse(host.text.toString(), code.text.toString())
-            ?: run { status.text = "Enter the Phone IP and 8-digit code shown on the phone. Include the port if the phone shows one."; return }
-        prefs.edit().putString("host", host.text.toString().trim()).apply()
-        host.isEnabled = false; code.isEnabled = false; start.isEnabled = false; stop.isEnabled = true
-        status.text = "Connecting to the phone camera…"
-        showReadings(null, "Connecting")
-        session = Session(phone).also { it.start() }
-    }
-
-    private fun stopMeter(message: String) {
-        session?.close()
-        session = null
-        analysis.reset()
-        preview.show(null)
-        host.isEnabled = true; code.isEnabled = true; start.isEnabled = true; stop.isEnabled = false
-        status.text = message
-        showReadings(null, "Meter off")
-        values.getValue("Video").text = "—"
-        values.getValue("Face analysis").text = "—"
-    }
-
-    private fun showReadings(m: DrowsinessTracker.Metrics?, message: String) {
-        level.text = m?.level?.label ?: message
-        level.setTextColor(when (m?.level) {
-            DrowsinessTracker.Level.ASLEEP, DrowsinessTracker.Level.DROWSY -> 0xffffad99.toInt()
-            DrowsinessTracker.Level.TIRING, DrowsinessTracker.Level.NO_FACE -> 0xffffdb93.toInt()
-            else -> context.getColor(R.color.accent)
-        })
-        val shown = m?.let { listOf("${it.alertness}%", "%.1f s".format(it.closedMs / 1000.0), "${it.perclos}%", "${it.blinksPerMin}", "${it.yawns}") }
-        values.values.take(5).forEachIndexed { i, v -> v.text = shown?.get(i) ?: "—" }
-    }
-
-    private fun beep(hz: Double) = Thread({
-        val rate = 22050
-        val pcm = ShortArray(rate * 22 / 100) { (sin(2 * PI * hz * it / rate) * 0.3 * Short.MAX_VALUE).toInt().toShort() }
-        val track = AudioTrack.Builder()
-            .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
-            .setAudioFormat(AudioFormat.Builder().setSampleRate(rate).setEncoding(AudioFormat.ENCODING_PCM_16BIT).setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build())
-            .setBufferSizeInBytes(pcm.size * 2).setTransferMode(AudioTrack.MODE_STATIC).build()
-        try {
-            track.write(pcm, 0, pcm.size)
-            track.play()
-            Thread.sleep(260)
-        } catch (_: Exception) { // visual alerts are still shown
-        } finally {
-            track.release()
+        val phone = PhoneEndpoint.parse(host.text.toString(), code.text.toString()) ?: run {
+            status.text = "Enter the Phone IP and 8-digit code shown on the phone. Include the port if shown."
+            return
         }
-    }, "meter-beep").start()
+        pairing.code = code.text.toString().trim()
+        val door = DoorSide.entries[side.selectedItemPosition]
+        prefs.edit().putString("host", host.text.toString().trim()).putInt("doorSide", door.ordinal).apply()
+        host.isEnabled = false
+        code.isEnabled = false
+        start.isEnabled = false
+        stop.isEnabled = true
+        side.isEnabled = false
+        status.text = "Connecting to the phone camera…"
+        showState("Connecting")
+        session = Session(phone, door).also { it.start() }
+    }
 
-    fun destroy() {
+    private fun stopMonitor(message: String) {
         session?.close()
         session = null
+        tone?.release()
+        tone = null
         preview.show(null)
+        preview.overlay(if (mode == MonitorMode.SAFE_EXIT) DoorSide.entries[side.selectedItemPosition].zone else null, null)
+        host.isEnabled = true
+        code.isEnabled = true
+        start.isEnabled = true
+        stop.isEnabled = false
+        side.isEnabled = true
+        status.text = message
+        showState("Camera off")
+    }
+
+    private fun showState(message: String) {
+        level.text = message
+        level.setTextColor(context.getColor(R.color.accent))
+        details.values.forEach { it.text = "—" }
+    }
+
+    private fun showDrowsiness(m: DrowsinessTracker.Metrics) {
+        val warning = m.level in listOf(DrowsinessTracker.Level.ASLEEP, DrowsinessTracker.Level.DROWSY, DrowsinessTracker.Level.TIRING)
+        level.text = m.level.label
+        level.setTextColor(context.getColor(if (warning) R.color.warn else R.color.accent))
+        val shown = listOf("${m.alertness}%", "%.1f s".format(m.closedMs / 1000.0), "${m.perclos}%")
+        details.values.zip(shown).forEach { (view, value) -> view.text = value }
+    }
+
+    private fun showExit(reading: ExitReading) {
+        val candidate = reading.candidate
+        level.text = when {
+            candidate == null -> "Monitoring door zone"
+            reading.approaching -> "${candidate.label} approaching door zone"
+            else -> "${candidate.label} in door zone"
+        }
+        level.setTextColor(context.getColor(if (candidate == null) R.color.accent else R.color.warn))
+        details.getValue("Objects detected").text = reading.objects.size.toString()
+    }
+
+    private fun beep(urgent: Boolean) {
+        runCatching {
+            val player = tone ?: ToneGenerator(AudioManager.STREAM_MUSIC, 55).also { tone = it }
+            player.startTone(if (urgent) ToneGenerator.TONE_PROP_BEEP2 else ToneGenerator.TONE_PROP_BEEP, 200)
+        }
+    }
+
+    fun destroy(): Future<*> {
+        stopMonitor("")
+        val closed = worker.submit { }
+        worker.shutdown()
+        return closed
+    }
+
+    private fun metric(title: String, value: TextView) = LinearLayout(context).apply {
+        setPadding(0, dp(5), 0, dp(5))
+        addView(label(title, 13f, R.color.ink2), LayoutParams(0, -2, 1f))
+        addView(value)
     }
 
     private fun field(hint: String, widthDp: Int, type: Int) = EditText(context).apply {
@@ -289,39 +327,98 @@ internal class MonitorView(context: Context) : LinearLayout(context) {
         setSingleLine()
         setTextColor(context.getColor(R.color.ink))
         setHintTextColor(context.getColor(R.color.ink3))
-        layoutParams = LayoutParams(dp(widthDp), -2).apply { marginEnd = dp(8) }
+        textSize = 15f
+        setBackgroundResource(R.drawable.field)
+        setPadding(dp(14), 0, dp(14), 0)
+        layoutParams = LayoutParams(dp(widthDp), dp(44)).apply { marginEnd = dp(10) }
     }
 
-    private fun button(text: String, onClick: () -> Unit) = Button(context).apply {
+    private fun button(text: String, primary: Boolean = false, onClick: () -> Unit) = Button(context).apply {
         this.text = text
+        layoutParams = LayoutParams(-2, dp(44)).apply { marginEnd = dp(8) }
         isAllCaps = false
+        background = context.getDrawable(if (primary) R.drawable.button else R.drawable.button_quiet)
+        setTextColor(context.getColorStateList(if (primary) R.color.button_ink else R.color.button_quiet_ink))
+        textSize = 14f
+        typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+        stateListAnimator = null
+        minHeight = 0
+        minimumHeight = 0
+        setPadding(dp(18), 0, dp(18), 0)
         setOnClickListener { onClick() }
     }
 
     private fun label(text: String, size: Float, color: Int) = TextView(context).apply {
-        this.text = text; textSize = size; setTextColor(context.getColor(color))
+        this.text = text
+        textSize = size
+        setTextColor(context.getColor(color))
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+
+    private companion object {
+        /** One photo per this interval, or slower when analysis takes longer. */
+        const val SNAPSHOT_MS = 1_000L
+    }
 }
-
-/** Draws the newest frame, fitted and centred. Holds one [Shot] and releases it when the next arrives. */
 private class FrameView(context: Context) : View(context) {
-    private var shot: Shot? = null
-    private val paint = Paint(Paint.FILTER_BITMAP_FLAG)
+    private var shot: CameraImage? = null
+    private var zone: ExitBox? = null
+    private var exit: ExitReading? = null
+    private val imagePaint = Paint(Paint.FILTER_BITMAP_FLAG)
+    private val overlayPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        strokeWidth = 2f * resources.displayMetrics.density
+        textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 13f, resources.displayMetrics)
+    }
     private val dst = RectF()
+    private val overlay = RectF()
+    private val previewMatrix = Matrix()
 
-    fun show(next: Shot?) {
-        shot?.release()
+    fun show(next: CameraImage?) {
+        shot?.bitmap?.recycle()
         shot = next
         invalidate()
     }
 
+    fun overlay(zone: ExitBox?, exit: ExitReading?) {
+        if (this.zone == zone && this.exit === exit) return
+        this.zone = zone
+        this.exit = exit
+        invalidate()
+    }
+
     override fun onDraw(canvas: Canvas) {
-        val b = shot?.bitmap ?: return
+        val b = shot ?: return
         val k = minOf(width.toFloat() / b.width, height.toFloat() / b.height)
-        val w = b.width * k; val h = b.height * k
+        val w = b.width * k
+        val h = b.height * k
         dst.set((width - w) / 2, (height - h) / 2, (width + w) / 2, (height + h) / 2)
-        canvas.drawBitmap(b, null, dst, paint)
+        canvas.drawBitmap(b.bitmap, previewMatrix.apply {
+            setScale(k, k)
+            postTranslate(dst.left, dst.top)
+            preConcat(b.upright)
+        }, imagePaint)
+        val reading = exit
+        zone?.let { drawBox(canvas, it, if (reading?.candidate == null) context.getColor(R.color.accent) else 0xffe8a33d.toInt(), fill = true) }
+        reading?.objects?.forEach { obj ->
+            val color = if (obj == reading.candidate) 0xffe8a33d.toInt() else 0xffbfe7f4.toInt()
+            drawBox(canvas, obj.box, color, fill = false)
+            overlayPaint.style = Paint.Style.FILL
+            canvas.drawText(obj.label, overlay.left + 2f, maxOf(dst.top + overlayPaint.textSize, overlay.top - 3f), overlayPaint)
+        }
+    }
+
+    private fun drawBox(canvas: Canvas, box: ExitBox, color: Int, fill: Boolean) {
+        overlay.set(dst.left + box.left * dst.width(), dst.top + box.top * dst.height(),
+            dst.left + box.right * dst.width(), dst.top + box.bottom * dst.height())
+        overlayPaint.color = color
+        if (fill) {
+            overlayPaint.alpha = 36
+            overlayPaint.style = Paint.Style.FILL
+            canvas.drawRect(overlay, overlayPaint)
+            overlayPaint.alpha = 255
+        }
+        overlayPaint.style = Paint.Style.STROKE
+        canvas.drawRect(overlay, overlayPaint)
     }
 }

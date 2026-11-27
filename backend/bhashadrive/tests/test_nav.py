@@ -40,27 +40,6 @@ def test_toll_absent_vs_unknown_price():
     assert unknown.post("/nav/route", json={"origin": ORIGIN, "destination": "Juhu"}).json()["toll"] == {"inr": None}
 
 
-def test_places_top_three_near_the_car():
-    sent = {}
-
-    def handler(req):
-        sent["url"], sent["body"], sent["headers"] = str(req.url), json.loads(req.content), req.headers
-        return httpx.Response(200, json={"places": [
-            {"displayName": {"text": "Starbucks"}, "formattedAddress": "Bandra, Mumbai", "location": {"latitude": 19.06, "longitude": 72.83}},
-            {"displayName": {"text": "No location"}},  # dropped: can't navigate there
-            {"displayName": {"text": "Starbucks Juhu"}, "formattedAddress": "Juhu", "location": {"latitude": 19.1, "longitude": 72.82}}]})
-
-    r = _client(handler).post("/nav/places", json={"query": " starbucks ", "near": ORIGIN}).json()
-    assert sent["url"].endswith("places:searchText") and sent["body"]["textQuery"] == "starbucks"
-    assert sent["body"]["maxResultCount"] == 3 and sent["body"]["locationBias"]["circle"]["center"]["latitude"] == 19.076
-    assert "places.location" in sent["headers"]["x-goog-fieldmask"]
-    assert [p["name"] for p in r["places"]] == ["Starbucks", "Starbucks Juhu"] and r["places"][0]["lat"] == 19.06
-    no_gps = _client(lambda q: (sent.update(body=json.loads(q.content)), httpx.Response(200, json={}))[1])
-    assert no_gps.post("/nav/places", json={"query": "Pune"}).json()["places"] == [] and "locationBias" not in sent["body"]
-    assert _client(None).post("/nav/places", json={"query": "   "}).status_code == 422
-    assert _client(None, key=None).post("/nav/places", json={"query": "Pune"}).status_code == 503
-
-
 def test_errors_never_invent_a_route():
     assert _client(None, key=None).post("/nav/route", json={"origin": ORIGIN, "destination": "Pune"}).status_code == 503
     assert _client(lambda q: httpx.Response(200, json={})).post("/nav/route", json={"origin": ORIGIN, "destination": "Nowhere"}).status_code == 404

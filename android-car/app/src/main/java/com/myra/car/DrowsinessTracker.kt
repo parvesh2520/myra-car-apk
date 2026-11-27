@@ -40,9 +40,13 @@ internal class DrowsinessTracker {
     private var baseline = 0.15f
 
     fun update(t: Long, face: Boolean, eyeClosed: Float, jawOpen: Float): Metrics {
-        if (!face) {
+        // A camera gap cannot establish that the eyes or jaw stayed in the same state.
+        if (!face || lastFace?.let { t - it > MAX_SAMPLE_GAP_MS } == true) {
             closedSince = null
             jawSince = null
+            yawnCounted = false
+        }
+        if (!face) {
             val seen = lastFace ?: t.also { lastFace = it } // never seen a face: count from the first frame
             val m = metrics(t, 0, 0f, 0f)
             return if (t - seen > NO_FACE_MS) m.copy(level = Level.NO_FACE) else m
@@ -106,5 +110,6 @@ internal class DrowsinessTracker {
         private const val YAWN_WINDOW_MS = 180_000L
         private const val YAWN_MIN_MS = 1200L
         private const val NO_FACE_MS = 2000L
+        private const val MAX_SAMPLE_GAP_MS = 5_000L // photos arrive about once a second; longer means the camera dropped out
     }
 }

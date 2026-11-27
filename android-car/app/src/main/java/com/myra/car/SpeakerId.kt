@@ -90,6 +90,8 @@ class SpeakerId(context: Context) : Closeable {
 
     companion object {
         const val MODEL = "campplus_sv_zh_en_16k.onnx"
+        fun enrolledDrivers(context: Context): Set<String> =
+            Voiceprints(load(File(context.noBackupFilesDir, "voiceprints.json"))).counts().keys
         const val RATE = 16000
         // Backend defaults (bhashadrive/config.py SpeakerIDConfig).
         const val THRESHOLD = 0.35f

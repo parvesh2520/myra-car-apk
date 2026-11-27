@@ -7,7 +7,7 @@ import java.io.File
 /**
  * Voice shortcuts the driver teaches the car: "whenever I say chill mode, set the AC to 20 and play music".
  * A shortcut is a name and the actions it runs (each in [Car.run]'s JSON form). Stored in the app's private
- * shortcuts.json; saying the name later runs every action, before any model is asked.
+ * shortcuts.json. Literal names are checked before approximate matching.
  */
 class Shortcuts(private val file: File) {
     data class Shortcut(val name: String, val actions: List<JSONObject>)
@@ -74,8 +74,15 @@ class Shortcuts(private val file: File) {
         private val SPLIT = Regex(""",? and then |, then | and also |, and |, | and | then """)
         private val FILLER = Regex("""^(?:hey myra|hey|ok|okay|myra|please)\s+|\s+(?:please|now)$""")
 
+        private val INVOKE = Regex("""^(?:(?:can|could|would|will) you (?:please )?)?(?:run|activate|trigger|start (?:the )?shortcut)(?: (?:the )?shortcut)? (.+)$""")
+        private val START = Regex("""^(?:(?:can|could|would|will) you (?:please )?)?start (.+)$""")
+
+        internal fun invocation(text: String, allowStart: Boolean = false): String? =
+            (INVOKE.matchEntire(text) ?: if (allowStart) START.matchEntire(text) else null)
+                ?.groupValues?.get(1)?.removeSuffix(" shortcut")?.let(::normalize)
+
         fun normalize(s: String): String {
-            var t = s.lowercase().replace(Regex("""[^\p{L}\p{N}' ]"""), " ").replace(Regex("""\s+"""), " ").trim()
+            var t = s.lowercase().replace('’', '\'').replace(Regex("""[^\p{L}\p{N}' ]"""), " ").replace(Regex("""\s+"""), " ").trim()
             while (true) { val next = FILLER.replace(t, "").trim(); if (next == t) break; t = next }
             return t
         }
@@ -88,6 +95,26 @@ class Shortcuts(private val file: File) {
             val parts = m.groupValues[2].split(SPLIT).map { it.trim(' ', ',') }.filter { it.isNotEmpty() }
             return if (name.isEmpty() || parts.isEmpty()) null else name to parts
         }
+
+        private val CONNECTOR = Regex("""^(?:(?:,|then|that will|that|to|which does|which|means|mean|i want you to|you should|should|please|as|for|is|a shortcut for|shortcut for|shortcut)\s+)+""")
+
+        /**
+         * A definition the model recognised by the shortcut [name] it tagged: "remember that movie night means dim the
+         * lights and play music" -> ("movie night", [what follows the name, one request per part]).
+         */
+        fun definitionAfter(text: String, name: String): Pair<String, List<String>>? {
+            val t = normalize(text)
+            val key = normalize(name)
+            val at = " $t ".indexOf(" $key ")
+            if (key.isEmpty() || at < 0) return null
+            val rest = CONNECTOR.replace(t.substring(minOf(t.length, at + key.length)).trim() + " ", "").trim()
+            val parts = clauses(rest)
+            return if (parts.isEmpty()) null else key to parts
+        }
+
+        /** "Set the AC to 22 and play music." -> ["set the ac to 22", "play music"]: one request per part. */
+        fun clauses(text: String): List<String> =
+            text.lowercase().trim().trimEnd('.', '!', '?').split(SPLIT).map { normalize(it) }.filter { it.isNotEmpty() }
 
         fun isDelete(text: String): String? =
             Regex("""^(?:delete|remove|forget)(?: the)?(?: shortcut)?(?: called)? (.+?)(?: shortcut)?$""")

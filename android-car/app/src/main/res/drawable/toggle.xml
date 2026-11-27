@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Climate toggle (A/C): filled with the accent tint when on. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true"><shape><solid android:color="@color/line" /><corners android:radius="12dp" /></shape></item>
+    <item android:state_activated="true"><shape><solid android:color="@color/accentDim" /><corners android:radius="12dp" /></shape></item>
+    <item><shape><solid android:color="@color/surface2" /><corners android:radius="12dp" /></shape></item>
+</selector>

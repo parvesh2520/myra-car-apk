@@ -15,17 +15,24 @@ class WordPiece(vocabLines: List<String>, private val maxLen: Int) {
 
     private fun id(token: String) = vocab[token] ?: error("vocab has no $token")
 
-    fun encode(text: String): IntArray {
+    /** Token ids, the words they came from, and for each token the index of its word (-1 for [CLS]/[SEP]). */
+    class Encoded(val ids: IntArray, val words: List<String>, val wordOf: IntArray)
+
+    fun encode(text: String): IntArray = encodeWords(text).ids
+
+    fun encodeWords(text: String): Encoded {
         val ids = ArrayList<Int>()
-        ids.add(cls)
-        for (word in basicTokens(text)) {
+        val wordOf = ArrayList<Int>()
+        ids.add(cls); wordOf.add(-1)
+        val words = basicTokens(text)
+        for ((w, word) in words.withIndex()) {
             for (piece in wordPieces(word)) {
                 if (ids.size == maxLen - 1) break
-                ids.add(piece)
+                ids.add(piece); wordOf.add(w)
             }
         }
-        ids.add(sep)
-        return ids.toIntArray()
+        ids.add(sep); wordOf.add(-1)
+        return Encoded(ids.toIntArray(), words, wordOf.toIntArray())
     }
 
     private fun basicTokens(text: String): List<String> {

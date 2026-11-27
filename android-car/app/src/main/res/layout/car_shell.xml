@@ -1,159 +1,431 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Head-unit frame: status bar on top, app rail on the left, the open screen, climate bar along the bottom. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/bg"
-    android:orientation="horizontal">
+    android:orientation="vertical">
 
-    <!-- Sidebar: one entry per screen. Assistant and Shortcuts share Myra's models; the others run alone. -->
+    <!-- Status bar -->
     <LinearLayout
-        android:layout_width="184dp"
-        android:layout_height="match_parent"
-        android:background="@color/surface"
-        android:orientation="vertical"
-        android:paddingStart="10dp"
-        android:paddingTop="18dp"
-        android:paddingEnd="10dp"
-        android:paddingBottom="14dp">
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp">
 
-        <TextView
+        <TextClock
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="14dp"
-            android:text="Myra"
+            android:fontFamily="sans-serif-medium"
+            android:format12Hour="h:mm"
+            android:format24Hour="HH:mm"
             android:textColor="@color/ink"
-            android:textSize="22sp"
-            android:textStyle="bold" />
+            android:textSize="18sp" />
 
-        <TextView
+        <TextClock
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="14dp"
-            android:layout_marginBottom="14dp"
-            android:text="In-car assistant"
+            android:layout_marginStart="12dp"
+            android:format12Hour="EEE d MMM"
+            android:format24Hour="EEE d MMM"
             android:textColor="@color/ink3"
-            android:textSize="12sp" />
-
-        <LinearLayout
-            android:id="@+id/myraTab"
-            style="@style/NavItem">
-
-            <ImageView
-                style="@style/NavIcon"
-                android:src="@drawable/ic_chat" />
-
-            <TextView
-                style="@style/NavLabel"
-                android:text="Assistant" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/shortcutsTab"
-            style="@style/NavItem">
-
-            <ImageView
-                style="@style/NavIcon"
-                android:src="@drawable/ic_bolt" />
-
-            <TextView
-                style="@style/NavLabel"
-                android:text="Shortcuts" />
-
-            <TextView
-                android:id="@+id/shortcutCount"
-                android:layout_width="wrap_content"
-                android:layout_height="20dp"
-                android:background="@drawable/badge"
-                android:gravity="center"
-                android:minWidth="26dp"
-                android:paddingStart="7dp"
-                android:paddingEnd="7dp"
-                android:text="0"
-                android:textColor="@color/accent"
-                android:textSize="12sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/meterTab"
-            style="@style/NavItem">
-
-            <ImageView
-                style="@style/NavIcon"
-                android:src="@drawable/ic_eye" />
-
-            <TextView
-                style="@style/NavLabel"
-                android:text="Drowsiness" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/voiceTab"
-            style="@style/NavItem">
-
-            <ImageView
-                style="@style/NavIcon"
-                android:src="@drawable/ic_wave" />
-
-            <TextView
-                style="@style/NavLabel"
-                android:text="Voice ID" />
-        </LinearLayout>
+            android:textSize="13sp" />
 
         <View
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="0dp"
             android:layout_weight="1" />
 
         <TextView
-            android:id="@+id/openPhoneCamera"
-            android:layout_width="match_parent"
-            android:layout_height="44dp"
-            android:layout_marginBottom="12dp"
-            android:background="@drawable/button_quiet"
-            android:drawableStart="@drawable/ic_camera"
-            android:drawablePadding="10dp"
-            android:drawableTint="@color/ink2"
-            android:gravity="center_vertical"
-            android:paddingStart="14dp"
-            android:text="Phone camera"
-            android:textColor="@color/ink2"
-            android:textSize="14sp"
-            android:visibility="gone" />
+            android:id="@+id/system"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:maxLines="1"
+            android:textColor="@color/ink3"
+            android:textSize="12sp" />
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="16dp"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:background="@color/line" />
+
+        <ImageView
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_person"
+            android:tint="@color/ink2" />
 
         <TextView
-            android:id="@+id/system"
-            android:layout_width="match_parent"
+            android:id="@+id/driver"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="14dp"
-            android:lineSpacingExtra="3dp"
-            android:textColor="@color/ink3"
-            android:textSize="11sp" />
+            android:layout_marginStart="6dp"
+            android:maxLines="1"
+            android:text="Guest"
+            android:textColor="@color/ink2"
+            android:textSize="13sp" />
     </LinearLayout>
 
-    <FrameLayout
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="1">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal">
 
-        <include
-            android:id="@+id/myraPane"
-            layout="@layout/main" />
+        <!-- App rail. Home and Shortcuts share Myra's models; Alertness, Safe Exit and Voice ID run alone. -->
+        <ScrollView
+            android:layout_width="88dp"
+            android:layout_height="match_parent"
+            android:fadeScrollbars="true"
+            android:fillViewport="true"
+            android:scrollbars="none">
 
-        <include
-            android:id="@+id/shortcutsPane"
-            layout="@layout/shortcuts"
-            android:visibility="gone" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingTop="4dp"
+                android:paddingBottom="8dp">
+
+                <LinearLayout
+                    android:id="@+id/myraTab"
+                    style="@style/DockItem">
+
+                    <ImageView
+                        style="@style/DockIcon"
+                        android:src="@drawable/ic_home" />
+
+                    <TextView
+                        style="@style/DockLabel"
+                        android:text="Home" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/shortcutsTab"
+                    style="@style/DockItem">
+
+                    <ImageView
+                        style="@style/DockIcon"
+                        android:src="@drawable/ic_bolt" />
+
+                    <TextView
+                        style="@style/DockLabel"
+                        android:text="Shortcuts" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/meterTab"
+                    style="@style/DockItem">
+
+                    <ImageView
+                        style="@style/DockIcon"
+                        android:src="@drawable/ic_eye" />
+
+                    <TextView
+                        style="@style/DockLabel"
+                        android:text="Alertness" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/safeExitTab"
+                    style="@style/DockItem">
+
+                    <ImageView
+                        style="@style/DockIcon"
+                        android:src="@drawable/ic_safe_exit" />
+
+                    <TextView
+                        style="@style/DockLabel"
+                        android:text="Safe Exit" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/voiceTab"
+                    style="@style/DockItem">
+
+                    <ImageView
+                        style="@style/DockIcon"
+                        android:src="@drawable/ic_wave" />
+
+                    <TextView
+                        style="@style/DockLabel"
+                        android:text="Voice ID" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1" />
+
+                <LinearLayout
+                    android:id="@+id/openPhoneCamera"
+                    style="@style/DockItem"
+                    android:visibility="gone">
+
+                    <ImageView
+                        style="@style/DockIcon"
+                        android:src="@drawable/ic_camera" />
+
+                    <TextView
+                        style="@style/DockLabel"
+                        android:text="Phone cam" />
+                </LinearLayout>
+            </LinearLayout>
+        </ScrollView>
 
         <FrameLayout
-            android:id="@+id/meterPane"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:visibility="gone" />
+            android:layout_weight="1">
 
-        <FrameLayout
-            android:id="@+id/voicePane"
-            android:layout_width="match_parent"
+            <include
+                android:id="@+id/myraPane"
+                layout="@layout/main" />
+
+            <include
+                android:id="@+id/shortcutsPane"
+                layout="@layout/shortcuts"
+                android:visibility="gone" />
+
+            <FrameLayout
+                android:id="@+id/meterPane"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="gone" />
+
+            <FrameLayout
+                android:id="@+id/safeExitPane"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="gone" />
+
+            <FrameLayout
+                android:id="@+id/voicePane"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="gone" />
+        </FrameLayout>
+    </LinearLayout>
+
+    <!-- Climate bar: always on screen, like a head unit's HVAC strip. Scrolls on narrow displays. -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="76dp"
+        android:background="@color/surface"
+        android:fillViewport="true"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
             android:layout_height="match_parent"
-            android:visibility="gone" />    </FrameLayout>
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp">
+
+            <LinearLayout
+                android:id="@+id/acControl"
+                android:layout_width="wrap_content"
+                android:layout_height="52dp"
+                android:background="@drawable/toggle"
+                android:clickable="true"
+                android:contentDescription="Air conditioning"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="14dp"
+                android:paddingEnd="16dp">
+
+                <ImageView
+                    android:id="@+id/acIcon"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_snow"
+                    android:tint="@color/accent" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/ClimateLabel"
+                        android:text="A/C" />
+
+                    <TextView
+                        android:id="@+id/acState"
+                        style="@style/ClimateValue"
+                        android:text="On" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <View style="@style/ClimateDivider" />
+
+            <ImageView
+                android:id="@+id/tempDown"
+                style="@style/RoundButton"
+                android:contentDescription="Cooler"
+                android:src="@drawable/ic_remove" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_marginEnd="10dp"
+                android:gravity="center_horizontal"
+                android:minWidth="64dp"
+                android:orientation="vertical">
+
+                <TextView
+                    style="@style/ClimateLabel"
+                    android:text="Temperature" />
+
+                <TextView
+                    android:id="@+id/tempValue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif-light"
+                    android:includeFontPadding="false"
+                    android:text="22°"
+                    android:textColor="@color/ink"
+                    android:textSize="30sp" />
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/tempUp"
+                style="@style/RoundButton"
+                android:contentDescription="Warmer"
+                android:src="@drawable/ic_add" />
+
+            <View style="@style/ClimateDivider" />
+
+            <ImageView
+                android:id="@+id/fanDown"
+                style="@style/RoundButton"
+                android:contentDescription="Lower fan speed"
+                android:src="@drawable/ic_remove" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_marginEnd="10dp"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="12dp"
+                        android:layout_height="12dp"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_fan"
+                        android:tint="@color/ink3" />
+
+                    <TextView
+                        style="@style/ClimateLabel"
+                        android:layout_marginStart="5dp"
+                        android:text="Fan" />
+
+                    <TextView
+                        android:id="@+id/fanText"
+                        style="@style/ClimateLabel"
+                        android:layout_marginStart="6dp"
+                        android:textColor="@color/ink2" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/fanBars"
+                    android:layout_width="wrap_content"
+                    android:layout_height="28dp"
+                    android:layout_marginTop="5dp"
+                    android:gravity="bottom"
+                    android:orientation="horizontal" />
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/fanUp"
+                style="@style/RoundButton"
+                android:contentDescription="Raise fan speed"
+                android:src="@drawable/ic_add" />
+
+            <View style="@style/ClimateDivider" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_seat"
+                    android:tint="@color/ink2" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/ClimateLabel"
+                        android:text="Seat height" />
+
+                    <TextView
+                        android:id="@+id/seatText"
+                        style="@style/ClimateValue" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <View style="@style/ClimateDivider" />
+
+            <LinearLayout
+                android:id="@+id/ambientControl"
+                android:layout_width="wrap_content"
+                android:layout_height="52dp"
+                android:background="@drawable/toggle"
+                android:clickable="true"
+                android:contentDescription="Ambient light colour"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="14dp"
+                android:paddingEnd="16dp">
+
+                <View
+                    android:id="@+id/ambientSwatch"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:importantForAccessibility="no" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/ClimateLabel"
+                        android:text="Ambient light" />
+
+                    <TextView
+                        android:id="@+id/ambientLabel"
+                        style="@style/ClimateValue" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </HorizontalScrollView>
 </LinearLayout>

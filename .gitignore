@@ -18,3 +18,4 @@ backend/models/*.log
 *.keystore
 *.jks
 android-car/*.log
+android-car/.kotlin/

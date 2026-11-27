@@ -16,8 +16,6 @@ from ..config import NavConfig
 
 URL = "https://routes.googleapis.com/directions/v2:computeRoutes"
 FIELDS = "routes.duration,routes.distanceMeters,routes.travelAdvisory.tollInfo"
-PLACES_URL = "https://places.googleapis.com/v1/places:searchText"
-PLACE_FIELDS = "places.displayName,places.formattedAddress,places.location"
 
 
 class LatLng(BaseModel):
@@ -28,11 +26,6 @@ class LatLng(BaseModel):
 class RouteIn(BaseModel):
     origin: LatLng
     destination: str = Field(min_length=1, max_length=100)
-
-
-class PlacesIn(BaseModel):
-    query: str = Field(min_length=1, max_length=100)
-    near: LatLng | None = None
 
 
 class RouteService:
@@ -56,21 +49,6 @@ class RouteService:
             msg = (r.json().get("error", {}).get("message", "") if r.headers.get("content-type", "").startswith("application/json") else "")[:200]
             raise HTTPException(502, {"code": "maps_error", "message": f"Maps service error {r.status_code}. {msg}".strip()})
         return r.json()
-
-    def places(self, query: str, near: LatLng | None) -> list[dict]:
-        """Up to 3 Google Places (Text Search) for `query`, nearest-biased when the car's position is known."""
-        body: dict = {"textQuery": query, "maxResultCount": 3, "regionCode": "in", "languageCode": "en-IN"}
-        if near is not None:
-            body["locationBias"] = {"circle": {"center": {"latitude": near.lat, "longitude": near.lng}, "radius": 50000.0}}
-        found = self._post(PLACES_URL, body, PLACE_FIELDS).get("places") or []
-        out = []
-        for p in found:
-            loc = p.get("location") or {}
-            if "latitude" not in loc or "longitude" not in loc:
-                continue
-            out.append({"name": (p.get("displayName") or {}).get("text") or query, "address": p.get("formattedAddress", ""),
-                        "lat": loc["latitude"], "lng": loc["longitude"]})
-        return out
 
     def route(self, origin: LatLng, destination: str) -> dict:
         c = self.config
@@ -111,13 +89,6 @@ def nav_router(service: RouteService) -> APIRouter:
     @r.post("/route")
     def route(body: RouteIn):
         return service.route(body.origin, body.destination.strip())
-
-    @r.post("/places")
-    def places(body: PlacesIn):
-        query = body.query.strip()
-        if not query:
-            raise HTTPException(422, "Empty query")
-        return {"query": query, "places": service.places(query, body.near)}
 
     @r.get("/status")
     def status():

@@ -17,7 +17,32 @@
   "dialog_confirm",
   "dialog_cancel",
   "unsupported",
-  "ambiguous"
+  "ambiguous",
+  "climate_fan_speed_set",
+  "volume_set",
+  "volume_mute",
+  "ambient_light_set",
+  "seat_up",
+  "seat_down",
+  "seat_height_set",
+  "navigation_stop",
+  "shortcut_define",
+  "shortcut_delete"
+ ],
+ "tags": [
+  "O",
+  "B-TEMP",
+  "I-TEMP",
+  "B-LEVEL",
+  "I-LEVEL",
+  "B-COLOR",
+  "I-COLOR",
+  "B-GENRE",
+  "I-GENRE",
+  "B-PLACE",
+  "I-PLACE",
+  "B-NAME",
+  "I-NAME"
  ],
  "max_len": 32,
  "lowercase": true

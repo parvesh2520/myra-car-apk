@@ -15,8 +15,6 @@ services:
         sync: false
       - key: GEMINI_API_KEY
         sync: false
-      - key: GOOGLE_MAPS_API_KEY   # Places API (New) + Routes API; the car's place search goes through /api/nav/places
-        sync: false
       - key: BD_DEV_TIER_SWITCH
         value: "true"
       - key: BD_DEV_DEFAULT_TIER

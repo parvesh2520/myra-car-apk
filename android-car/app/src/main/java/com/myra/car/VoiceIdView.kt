@@ -2,6 +2,7 @@ package com.myra.car
 
 import android.Manifest
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.Looper
@@ -12,37 +13,45 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
-import java.io.ByteArrayOutputStream
 import java.util.concurrent.Executors
-import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.Future
 
 /**
  * Voice recognition screen: enroll a driver's voice under a name, then tap to find out who is speaking.
  * Runs alone: Myra AI and the drowsiness meter are released while it is open, and [destroy] releases its model.
  */
-class VoiceIdView(private val activity: Activity) : FrameLayout(activity) {
+internal class VoiceIdView(
+    private val activity: Activity,
+    private val onCabinSaved: (String, Cabin) -> Unit,
+) : FrameLayout(activity) {
     private val main = Handler(Looper.getMainLooper())
     private val work = Executors.newSingleThreadExecutor()
     private val recorder = Recorder()
+    private val cabins = DriverCabins(activity)
+    private var cabinEditor: AlertDialog? = null
     private var speaker: SpeakerId? = null // accessed only by work
     private var ready = false
     private var busy = false
     private var recording: String? = null // "" = identifying, otherwise the profile being enrolled
-    private var pcm: ByteArrayOutputStream? = null
     @Volatile private var alive = true
 
     private val status = text("Loading the voice model…", 16f, R.color.ink)
     private val detail = text("", 12f, R.color.ink3)
-    private val identifyBtn = button("Who is speaking?") { toggle("") }
+    private val identifyBtn = button("Who is speaking?", primary = true) { toggle("") }
     private val name = EditText(activity).apply {
         hint = "Driver name"
         setSingleLine()
         inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
         setTextColor(activity.getColor(R.color.ink))
         setHintTextColor(activity.getColor(R.color.ink3))
+        textSize = 15f
+        setBackgroundResource(R.drawable.field)
+        setPadding(dp(14), 0, dp(14), 0)
+        minHeight = dp(48)
     }
-    private val enrollBtn = button("Record voice sample") {
+    private val enrollBtn = button("Record voice sample", primary = true) {
         val n = name.text.toString().trim()
         if (recording == null && n.isEmpty()) status.text = "Type the driver's name first." else toggle(n)
     }
@@ -50,26 +59,26 @@ class VoiceIdView(private val activity: Activity) : FrameLayout(activity) {
 
     init {
         setBackgroundColor(activity.getColor(R.color.bg))
-        val row = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL; setPadding(dp(16), dp(16), dp(16), dp(16)) }
+        val row = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL; setPadding(dp(4), dp(8), dp(16), dp(16)) }
         row.addView(column(1f).apply {
             gravity = Gravity.CENTER
-            addView(identifyBtn, LinearLayout.LayoutParams(-1, dp(88)))
+            addView(identifyBtn, LinearLayout.LayoutParams(-1, dp(64)))
             addView(status.apply { gravity = Gravity.CENTER; setPadding(0, dp(14), 0, 0) })
             addView(detail.apply { gravity = Gravity.CENTER; setPadding(0, dp(8), 0, 0) })
         })
         row.addView(column(1f).apply {
             setPadding(dp(12), 0, dp(12), 0)
-            addView(text("Enroll a driver", 18f, R.color.ink).apply { setTypeface(typeface, android.graphics.Typeface.BOLD) })
+            addView(text("Enroll a driver", 18f, R.color.ink).apply { typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL) })
             addView(text("Tap record, read the sentence below, then tap again. 3 samples give the best recognition.", 13f, R.color.ink2))
             addView(text("“Hello Myra, set the temperature to twenty two degrees and play my favourite music.”", 14f, R.color.ink).apply { setPadding(0, dp(10), 0, dp(10)) })
             addView(name)
-            addView(enrollBtn, LinearLayout.LayoutParams(-1, dp(60)).apply { topMargin = dp(8) })
+            addView(enrollBtn, LinearLayout.LayoutParams(-1, dp(52)).apply { topMargin = dp(12) })
         })
         row.addView(column(1f).apply {
             setBackgroundResource(R.drawable.panel)
             setPadding(dp(14), dp(14), dp(14), dp(14))
-            addView(text("Enrolled voices", 14f, R.color.ink2).apply { setTypeface(typeface, android.graphics.Typeface.BOLD) })
-            addView(list)
+            addView(text("Driver profiles", 14f, R.color.ink2).apply { setTypeface(typeface, android.graphics.Typeface.BOLD) })
+            addView(ScrollView(activity).apply { addView(list, -1, -2) }, LinearLayout.LayoutParams(-1, 0, 1f))
         })
         addView(row, -1, -1)
         setButtons()
@@ -102,10 +111,7 @@ class VoiceIdView(private val activity: Activity) : FrameLayout(activity) {
         }
         if (!recorder.open()) { status.text = "Couldn't open the microphone. Try again."; return }
         recording = profile
-        val out = ByteArrayOutputStream().also { pcm = it }
-        val queue = LinkedBlockingQueue<ByteArray>()
-        recorder.start(queue)
-        Thread({ while (true) { val b = queue.take(); if (b.isEmpty()) break; synchronized(out) { out.write(b) } } }, "voice-id-pcm").start()
+        recorder.start(captureVoice = true)
         status.text = if (profile.isEmpty()) "Listening… speak, then tap to stop" else "Recording $profile… tap to stop"
         detail.text = ""
         setButtons()
@@ -120,14 +126,14 @@ class VoiceIdView(private val activity: Activity) : FrameLayout(activity) {
         recording = null
         recorder.stop()
         val loud = recorder.peakRms >= Recorder.SPEECH_RMS
+        val pcm = recorder.takeVoice()
         recorder.close() // free the mic between recordings
-        val out = pcm ?: return
-        pcm = null
+        if (pcm == null) return
         busy = true
         setButtons()
         status.text = "Analysing the voice on the car…"
         work.execute {
-            val audio = synchronized(out) { out.toByteArray() }.let { b -> FloatArray(b.size / 2) { ((b[2 * it].toInt() and 0xFF) or (b[2 * it + 1].toInt() shl 8)) / 32768f } }
+            val audio = Recorder.samples(pcm)
             val t0 = System.nanoTime()
             val s = speaker
             val result: Result<String> = runCatching {
@@ -157,23 +163,59 @@ class VoiceIdView(private val activity: Activity) : FrameLayout(activity) {
 
     private fun forget(profile: String) {
         if (busy || recording != null) return
+        busy = true
+        setButtons()
         work.execute {
-            runCatching { speaker?.forget(profile) }
+            val result = runCatching {
+                checkNotNull(speaker).forget(profile)
+                cabins.forget(profile)
+            }
             val counts = speaker?.prints?.counts().orEmpty()
-            main.post { if (alive) { renderList(counts); status.text = "Forgot $profile's voice." } }
+            main.post {
+                if (alive) {
+                    busy = false
+                    setButtons()
+                    renderList(counts)
+                    status.text = if (result.isSuccess) "Forgot $profile's voice and cabin settings." else "Couldn't forget $profile. Try again."
+                }
+            }
         }
     }
+
+    private fun editCabin(profile: String, summary: TextView) {
+        if (busy || recording != null || cabinEditor != null) return
+        val dialog = cabinSettingsDialog(activity, profile, cabins.load(profile)) { updated ->
+            cabins.save(profile, updated)
+            summary.text = cabinSummary(updated)
+            status.text = "Saved cabin settings for $profile."
+            onCabinSaved(profile, updated)
+        }
+        cabinEditor = dialog
+        dialog.setOnDismissListener { cabinEditor = null }
+        dialog.show()
+    }
+
+    private fun cabinSummary(cabin: Cabin): String =
+        "${if (cabin.acOn) "AC ${cabin.temp}°C" else "AC off"} · Fan ${if (cabin.fan == 0) "off" else cabin.fan}\n" +
+            "${cabin.light.label} light · Seat ${cabin.seatHeight}"
 
     private fun renderList(counts: Map<String, Int>) {
         list.removeAllViews()
         if (counts.isEmpty()) list.addView(text("None yet.", 13f, R.color.ink3))
         for ((p, n) in counts) {
             list.addView(LinearLayout(activity).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(0, dp(6), 0, dp(6))
-                addView(text("$p · $n sample${if (n == 1) "" else "s"}", 14f, R.color.ink), LinearLayout.LayoutParams(0, -2, 1f))
-                addView(button("Forget") { forget(p) })
+                orientation = LinearLayout.VERTICAL
+                setPadding(0, dp(8), 0, dp(8))
+                addView(LinearLayout(activity).apply {
+                    gravity = Gravity.CENTER_VERTICAL
+                    addView(text("$p · $n sample${if (n == 1) "" else "s"}", 14f, R.color.ink), LinearLayout.LayoutParams(0, -2, 1f))
+                    addView(button("Forget") { forget(p) })
+                })
+                val summary = text(cabinSummary(cabins.load(p)), 13f, R.color.ink2)
+                addView(summary)
+                addView(button("Cabin settings") { editCabin(p, summary) }.apply {
+                    contentDescription = "Cabin settings for $p"
+                }, LinearLayout.LayoutParams(-1, dp(48)))
             })
         }
     }
@@ -186,13 +228,15 @@ class VoiceIdView(private val activity: Activity) : FrameLayout(activity) {
         name.isEnabled = recording == null && !busy
     }
 
-    fun destroy() {
+    fun destroy(): Future<*> {
         alive = false
+        cabinEditor?.dismiss()
         main.removeCallbacksAndMessages(null)
         recording = null
         recorder.close()
-        work.execute { speaker?.close(); speaker = null }
+        val released = work.submit { speaker?.close(); speaker = null }
         work.shutdown()
+        return released
     }
 
     private fun column(weight: Float) = LinearLayout(activity).apply {
@@ -204,9 +248,17 @@ class VoiceIdView(private val activity: Activity) : FrameLayout(activity) {
         text = s; textSize = size; setTextColor(activity.getColor(color))
     }
 
-    private fun button(label: String, onClick: () -> Unit) = Button(activity).apply {
+    private fun button(label: String, primary: Boolean = false, onClick: () -> Unit) = Button(activity).apply {
         text = label
         isAllCaps = false
+        background = context.getDrawable(if (primary) R.drawable.button else R.drawable.button_quiet)
+        setTextColor(context.getColorStateList(if (primary) R.color.button_ink else R.color.button_quiet_ink))
+        textSize = 14f
+        typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+        stateListAnimator = null
+        minHeight = 0
+        minimumHeight = 0
+        setPadding(dp(18), 0, dp(18), 0)
         setOnClickListener { onClick() }
     }
 

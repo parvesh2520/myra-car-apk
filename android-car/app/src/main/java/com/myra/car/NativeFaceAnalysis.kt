@@ -2,6 +2,7 @@ package com.myra.car
 
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
+import ai.onnxruntime.OrtProvider
 import ai.onnxruntime.OrtSession
 import android.content.Context
 import android.graphics.Bitmap
@@ -9,9 +10,11 @@ import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.Paint
 import java.io.Closeable
+import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
+import java.nio.channels.FileChannel
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.exp
@@ -37,20 +40,25 @@ internal class NativeFaceAnalysis(private val context: Context) : Closeable {
     private var closed = false
     private var tracked: Roi? = null
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG)
+    private val facePoints = FloatArray(LANDMARKS * 2)
+    private val blendData = directFloats(BLENDSHAPE_POINTS.size * 2)
+    private var blendTensor: OnnxTensor? = null
 
     /** Per input size, reused every frame (the meter runs ~30 frames a second): crop bitmap, pixels, tensor data. */
-    private class Scratch(size: Int) {
+    private class Scratch(env: OrtEnvironment, size: Int) {
         val crop: Bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(crop)
         val pixels = IntArray(size * size)
-        val data: FloatBuffer = ByteBuffer.allocateDirect(size * size * 3 * 4).order(ByteOrder.nativeOrder()).asFloatBuffer()
+        val data = directFloats(size * size * 3)
+        val rgb = FloatArray(size * size * 3)
+        val tensor = OnnxTensor.createTensor(env, data, longArrayOf(1, size.toLong(), size.toLong(), 3))
         val matrix = Matrix()
     }
     private val scratch = HashMap<Int, Scratch>()
 
     /** Analyses one upright frame. The bitmap is only read. */
     @Synchronized
-    fun read(image: Bitmap): FaceReading {
+    fun read(image: CameraImage): FaceReading {
         check(!closed)
         val m = models ?: load().also { models = it }
         val face = tracked?.let { landmarks(m, image, it) } ?: detect(m, image)?.let { landmarks(m, image, it) }
@@ -68,13 +76,32 @@ internal class NativeFaceAnalysis(private val context: Context) : Closeable {
     fun reset() { tracked = null }
 
     private fun load(): Models {
-        fun session(name: String) = OrtSession.SessionOptions().use { opts ->
-            opts.setIntraOpNumThreads(2)
-            env.createSession(context.assets.open(name).use { it.readBytes() }, opts)
+        fun session(name: String): OrtSession {
+            val model = context.assets.openFd(name).use { asset ->
+                FileInputStream(asset.fileDescriptor).use { file ->
+                    file.channel.map(FileChannel.MapMode.READ_ONLY, asset.startOffset, asset.length)
+                }
+            }
+            fun create(accelerated: Boolean) = OrtSession.SessionOptions().use { opts ->
+                opts.setIntraOpNumThreads(if (accelerated) 1 else 2)
+                opts.addConfigEntry("session.intra_op.allow_spinning", "0")
+                if (accelerated) opts.addXnnpack(mapOf("intra_op_num_threads" to "2"))
+                env.createSession(model, opts)
+            }
+            if (OrtProvider.XNNPACK in OrtEnvironment.getAvailableProviders()) {
+                runCatching { create(true) }.getOrNull()?.let { return it }
+            }
+            return create(false)
         }
         val detector = session("face_detector.onnx")
         try {
-            return Models(detector, session("face_landmarks_detector.onnx"), session("face_blendshapes.onnx"))
+            val landmarks = session("face_landmarks_detector.onnx")
+            try {
+                return Models(detector, landmarks, session("face_blendshapes.onnx"))
+            } catch (error: Throwable) {
+                landmarks.close()
+                throw error
+            }
         } catch (e: Throwable) {
             detector.close()
             throw e
@@ -82,59 +109,57 @@ internal class NativeFaceAnalysis(private val context: Context) : Closeable {
     }
 
     /** BlazeFace (short range): the best face over 0.5, as the landmark model's region of interest. */
-    private fun detect(m: Models, image: Bitmap): Roi? {
+    private fun detect(m: Models, image: CameraImage): Roi? {
         val side = max(image.width, image.height).toFloat()
-        val input = tensor(image, Roi(image.width / 2f, image.height / 2f, side, side, 0f), DETECTOR_SIZE, -1f, 1f)
-        val (regressors, scores) = input.use { t ->
-            m.detector.run(mapOf(m.detector.inputNames.first() to t)).use { out ->
-                @Suppress("UNCHECKED_CAST")
-                (out[0].value as Array<Array<FloatArray>>)[0] to (out[1].value as Array<Array<FloatArray>>)[0]
-            }
+        val input = tensor(image, Roi(image.width / 2f, image.height / 2f, side, side, 0f), DETECTOR_SIZE, DETECTOR_COLORS)
+        val (regressors, scores) = m.detector.run(mapOf(m.detector.inputNames.first() to input)).use { out ->
+            (out[0] as OnnxTensor).floatBuffer to (out[1] as OnnxTensor).floatBuffer
         }
-        val best = scores.indices.maxBy { scores[it][0] }
-        if (sigmoid(scores[best][0].coerceIn(-100f, 100f)) < MIN_SCORE) return null
-        val r = regressors[best]
+        var best = 0
+        for (i in 1 until scores.limit()) if (scores.get(i) > scores.get(best)) best = i
+        if (sigmoid(scores.get(best).coerceIn(-100f, 100f)) < MIN_SCORE) return null
+        fun r(index: Int) = regressors.get(best * 16 + index)
         val ax = ANCHORS[2 * best]
         val ay = ANCHORS[2 * best + 1]
         // Letterboxed 128x128 coordinates back to image pixels.
         fun px(u: Float) = image.width / 2f + (u - 0.5f) * side
         fun py(v: Float) = image.height / 2f + (v - 0.5f) * side
-        val eye0x = px(r[4] / DETECTOR_SIZE + ax)
-        val eye0y = py(r[5] / DETECTOR_SIZE + ay)
-        val eye1x = px(r[6] / DETECTOR_SIZE + ax)
-        val eye1y = py(r[7] / DETECTOR_SIZE + ay)
-        return Roi(px(r[0] / DETECTOR_SIZE + ax), py(r[1] / DETECTOR_SIZE + ay), r[2] / DETECTOR_SIZE * side * 1.5f,
-            r[3] / DETECTOR_SIZE * side * 1.5f, -atan2(-(eye1y - eye0y), eye1x - eye0x))
+        val eye0x = px(r(4) / DETECTOR_SIZE + ax)
+        val eye0y = py(r(5) / DETECTOR_SIZE + ay)
+        val eye1x = px(r(6) / DETECTOR_SIZE + ax)
+        val eye1y = py(r(7) / DETECTOR_SIZE + ay)
+        return Roi(px(r(0) / DETECTOR_SIZE + ax), py(r(1) / DETECTOR_SIZE + ay), r(2) / DETECTOR_SIZE * side * 1.5f,
+            r(3) / DETECTOR_SIZE * side * 1.5f, -atan2(-(eye1y - eye0y), eye1x - eye0x))
     }
 
     /** The 478 face-mesh points in image pixels (x0, y0, x1, ...), or null when the model sees no face. */
-    private fun landmarks(m: Models, image: Bitmap, roi: Roi): FloatArray? {
-        val (points, presence) = tensor(image, roi, LANDMARK_SIZE, 0f, 1f).use { t ->
-            m.landmarks.run(mapOf(m.landmarks.inputNames.first() to t)).use { out ->
-                @Suppress("UNCHECKED_CAST")
-                (out[0].value as Array<Array<Array<FloatArray>>>)[0][0][0] to
-                    (out[1].value as Array<Array<Array<FloatArray>>>)[0][0][0][0]
-            }
+    private fun landmarks(m: Models, image: CameraImage, roi: Roi): FloatArray? {
+        val input = tensor(image, roi, LANDMARK_SIZE, LANDMARK_COLORS)
+        val points = m.landmarks.run(mapOf(m.landmarks.inputNames.first() to input)).use { out ->
+            if (sigmoid((out[1] as OnnxTensor).floatBuffer.get(0)) < MIN_SCORE) return null
+            (out[0] as OnnxTensor).floatBuffer
         }
-        if (sigmoid(presence) < MIN_SCORE) return null
         val c = cos(roi.rotation)
         val s = sin(roi.rotation)
-        return FloatArray(LANDMARKS * 2) { i ->
-            val x = points[(i / 2) * 3] / LANDMARK_SIZE - 0.5f
-            val y = points[(i / 2) * 3 + 1] / LANDMARK_SIZE - 0.5f
-            if (i % 2 == 0) roi.cx + c * x * roi.w - s * y * roi.h else roi.cy + s * x * roi.w + c * y * roi.h
+        for (i in 0 until LANDMARKS) {
+            val x = (points.get(i * 3) / LANDMARK_SIZE - 0.5f) * roi.w
+            val y = (points.get(i * 3 + 1) / LANDMARK_SIZE - 0.5f) * roi.h
+            facePoints[i * 2] = roi.cx + c * x - s * y
+            facePoints[i * 2 + 1] = roi.cy + s * x + c * y
         }
+        return facePoints
     }
 
     private fun blendshapes(m: Models, face: FloatArray): FloatArray {
-        val input = FloatArray(BLENDSHAPE_POINTS.size * 2)
-        BLENDSHAPE_POINTS.forEachIndexed { i, p ->
-            input[2 * i] = face[2 * p]
-            input[2 * i + 1] = face[2 * p + 1]
+        val input = blendTensor ?: OnnxTensor.createTensor(env, blendData, longArrayOf(1, BLENDSHAPE_POINTS.size.toLong(), 2))
+            .also { blendTensor = it }
+        blendData.clear()
+        BLENDSHAPE_POINTS.forEach { p ->
+            blendData.put(face[2 * p])
+            blendData.put(face[2 * p + 1])
         }
-        return OnnxTensor.createTensor(env, FloatBuffer.wrap(input), longArrayOf(1, BLENDSHAPE_POINTS.size.toLong(), 2)).use { t ->
-            m.blendshapes.run(mapOf(m.blendshapes.inputNames.first() to t)).use { out -> (out[0].value as FloatArray).copyOf() }
-        }
+        blendData.rewind()
+        return m.blendshapes.run(mapOf(m.blendshapes.inputNames.first() to input)).use { out -> out[0].value as FloatArray }
     }
 
     /** Next frame's region: the face rotated upright by its eye line (points 33 and 263), squared and scaled 1.5x. */
@@ -156,28 +181,28 @@ internal class NativeFaceAnalysis(private val context: Context) : Closeable {
         return Roi(c * u - s * v, s * u + c * v, side, side, rotation)
     }
 
-    /** The region [roi] resampled to size x size RGB, scaled to [lo, hi], NHWC (MediaPipe's ImageToTensor). */
-    private fun tensor(image: Bitmap, roi: Roi, size: Int, lo: Float, hi: Float): OnnxTensor {
-        val s = scratch.getOrPut(size) { Scratch(size) }
+    /** The region [roi] resampled to normalized RGB, NHWC (MediaPipe's ImageToTensor). */
+    private fun tensor(image: CameraImage, roi: Roi, size: Int, colors: FloatArray): OnnxTensor {
+        val s = scratch.getOrPut(size) { Scratch(env, size) }
         s.crop.eraseColor(0)
-        s.canvas.drawBitmap(image, s.matrix.apply {
+        s.canvas.drawBitmap(image.bitmap, s.matrix.apply {
             setTranslate(-roi.cx, -roi.cy)
             postRotate(Math.toDegrees(-roi.rotation.toDouble()).toFloat())
             postScale(size / roi.w, size / roi.h)
             postTranslate(size / 2f, size / 2f)
+            preConcat(image.upright)
         }, paint)
         val pixels = s.pixels
         s.crop.getPixels(pixels, 0, size, 0, 0, size, size)
-        val scale = (hi - lo) / 255f
-        val data = s.data
-        data.clear()
-        for (p in pixels) { // outside the image is transparent black, like MediaPipe's zero border
-            data.put(((p shr 16) and 0xff) * scale + lo)
-            data.put(((p shr 8) and 0xff) * scale + lo)
-            data.put((p and 0xff) * scale + lo)
+        var index = 0
+        for (p in pixels) {
+            s.rgb[index++] = colors[(p shr 16) and 0xff]
+            s.rgb[index++] = colors[(p shr 8) and 0xff]
+            s.rgb[index++] = colors[p and 0xff]
         }
-        data.rewind()
-        return OnnxTensor.createTensor(env, data, longArrayOf(1, size.toLong(), size.toLong(), 3))
+        s.data.clear()
+        s.data.put(s.rgb).rewind()
+        return s.tensor
     }
 
     @Synchronized
@@ -185,7 +210,9 @@ internal class NativeFaceAnalysis(private val context: Context) : Closeable {
         closed = true
         models?.run { detector.close(); landmarks.close(); blendshapes.close() }
         models = null
-        scratch.values.forEach { it.crop.recycle() }
+        blendTensor?.close()
+        blendTensor = null
+        scratch.values.forEach { it.tensor.close(); it.crop.recycle() }
         scratch.clear()
     }
 
@@ -197,6 +224,11 @@ internal class NativeFaceAnalysis(private val context: Context) : Closeable {
         private const val EYE_BLINK_LEFT = 9
         private const val EYE_BLINK_RIGHT = 10
         private const val JAW_OPEN = 25
+        private val DETECTOR_COLORS = FloatArray(256) { it * (2f / 255f) - 1f }
+        private val LANDMARK_COLORS = FloatArray(256) { it * (1f / 255f) }
+
+        private fun directFloats(size: Int): FloatBuffer =
+            ByteBuffer.allocateDirect(size * Float.SIZE_BYTES).order(ByteOrder.nativeOrder()).asFloatBuffer()
 
         private fun sigmoid(x: Float) = 1f / (1f + exp(-x))
 

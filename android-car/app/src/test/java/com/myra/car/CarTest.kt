@@ -32,8 +32,8 @@ class CarTest {
         assertEquals(null, car.apply(u("climate_off", negated = 0.9f), "don't turn off the ac").command)
         assertEquals(true, car.acOn)
         val nav = car.apply(u("navigation_destination_request"), "take me to the airport")
-        assertEquals("Airport", nav.command?.get("destination")) // searched on Google Places first
-        assertNull(car.destination) // the route starts only once a place is picked
+        assertEquals("Airport", nav.command?.get("destination"))
+        assertEquals("Airport", car.destination)
         assertNull(car.apply(Understanding("volume_up", 0.2f, 0f, 1), "mumble").command) // too unsure: nothing done
     }
 }

@@ -1,14 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Graphite cockpit, one teal signal colour, amber only for warnings. -->
-    <color name="bg">#0C0E11</color>
-    <color name="surface">#15181D</color>
-    <color name="surface2">#1C2027</color>
-    <color name="line">#262B33</color>
-    <color name="ink">#ECEEF1</color>
-    <color name="ink2">#A3AAB4</color>
-    <color name="ink3">#6E7682</color>
-    <color name="accent">#4FC1B0</color>
-    <color name="accentDim">#173A36</color>
+    <!-- Head-unit dark: deep navy glass, blue-grey cards, one automotive blue signal colour, amber only for warnings. -->
+    <color name="bg">#060A12</color>
+    <color name="surface">#0E1521</color>
+    <color name="surface2">#17202E</color>
+    <color name="line">#243042</color>
+    <color name="ink">#ECF1F7</color>
+    <color name="ink2">#9EAABB</color>
+    <color name="ink3">#5F6C80</color>
+    <color name="accent">#3D9BFF</color>
+    <color name="accentPressed">#2C7DD6</color>
+    <color name="accentDim">#0F2846</color>
     <color name="warn">#E8A33D</color>
 </resources>

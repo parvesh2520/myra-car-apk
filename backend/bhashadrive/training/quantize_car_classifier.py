@@ -51,7 +51,7 @@ def main(argv=None) -> int:
             rows = load(NLU / f"{split}_en.jsonl")
             right = neg = 0
             for r in rows:
-                probs, negp = sess.run(None, encode(r["text"]))
+                probs, negp, _ = sess.run(None, encode(r["text"]))
                 right += LABELS[int(probs[0].argmax())] == r["intent"]
                 neg += bool(negp[0] > 0.5) == bool(r.get("negated"))
             scores[split] = {"intent_accuracy": round(right / len(rows), 4), "negation_accuracy": round(neg / len(rows), 4), "n": len(rows)}

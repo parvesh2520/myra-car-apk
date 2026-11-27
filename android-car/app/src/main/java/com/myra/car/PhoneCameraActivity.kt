@@ -16,8 +16,10 @@ import android.util.Log
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.WindowManager
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.LinearLayout
+import android.widget.Spinner
 import android.widget.TextView
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.atomic.AtomicBoolean
@@ -33,6 +35,7 @@ class PhoneCameraActivity : Activity(), SurfaceHolder.Callback {
     private lateinit var preview: SurfaceView
     private lateinit var status: TextView
     private lateinit var button: Button
+    private lateinit var lens: Spinner
     private var surfaceReady = false
     private var startRequested = false
     private var captureStarted = 0L
@@ -47,18 +50,22 @@ class PhoneCameraActivity : Activity(), SurfaceHolder.Callback {
             val now = SystemClock.elapsedRealtime()
             val lastFrame = share.latest?.id ?: captureStarted
             if (now - lastFrame > 5000) {
-                stopSharing("The front camera stopped sending frames. Close other camera apps and tap Start phone camera again.")
+                stopSharing("The camera stopped sending frames. Close other camera apps and tap Start phone camera again.")
                 return
             }
             val addresses = runCatching { phoneAddresses() }.getOrDefault(emptyList())
             status.text = when {
-                share.latest == null -> "Waiting for the front camera preview…"
+                share.latest == null -> "Waiting for the camera preview…"
                 addresses.isEmpty() -> "Camera ready. Turn on your Wi-Fi hotspot or USB tethering to get a phone address."
                 else -> {
                     val shown = addresses.joinToString("  •  ") { if (share.port == CAMERA_PORT) it else "$it:${share.port}" }
-                    val sending = if (share.sentPerSecond > 0) "Sending ${share.sentPerSecond} fps to the car\n" else ""
+                    val sending = when {
+                        share.paired && now - share.lastSent < 5000 -> "Sending photos to the car\n"
+                        share.paired -> "Car paired · waiting for a photo request\n"
+                        else -> "Waiting for the car to pair\n"
+                    }
                     "Camera ready · $capturedPerSecond fps\nPhone IP: $shown\nCamera code: ${share.code}\n$sending" +
-                        "Keep this screen open while the meter is running."
+                        "Keep this screen open while the car is analyzing video."
                 }
             }
             main.postDelayed(this, 400)
@@ -76,11 +83,19 @@ class PhoneCameraActivity : Activity(), SurfaceHolder.Callback {
                 textSize = 24f
             })
             status = TextView(context).apply {
-                text = "Enable USB tethering or a password-protected hotspot. Then start the front camera."
+                text = "Enable USB tethering or a password-protected hotspot, then start the camera."
                 setPadding(0, pad, 0, pad)
                 textSize = 16f
             }
             addView(status)
+            lens = Spinner(context, Spinner.MODE_DIALOG).apply {
+                prompt = "Choose a camera"
+                adapter = ArrayAdapter(context, android.R.layout.simple_spinner_item,
+                    listOf("Front camera · Drowsiness meter", "Rear camera · Safe Exit")).apply {
+                    setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                }
+            }
+            addView(lens)
             preview = SurfaceView(context).also { it.holder.addCallback(this@PhoneCameraActivity) }
             addView(preview, LinearLayout.LayoutParams(-1, 0, 1f))
             button = Button(context).apply {
@@ -110,17 +125,22 @@ class PhoneCameraActivity : Activity(), SurfaceHolder.Callback {
     private fun startSharing() {
         if (!startRequested || !surfaceReady || camera != null) return
         startRequested = false
-        status.text = "Opening the front camera…"
-        var failure = "The front camera could not open. Check that camera access is on and close other camera apps."
+        val facing = if (lens.selectedItemPosition == 1) Camera.CameraInfo.CAMERA_FACING_BACK else Camera.CameraInfo.CAMERA_FACING_FRONT
+        status.text = "Opening the camera…"
+        var failure = "The selected camera could not open. Check camera access and close other camera apps."
         val result = runCatching {
             val info = Camera.CameraInfo()
             val id = (0 until Camera.getNumberOfCameras()).firstOrNull {
                 Camera.getCameraInfo(it, info)
-                info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT
-            } ?: error("No front camera found on this phone.")
+                info.facing == facing
+            }
+            if (id == null) {
+                failure = "The selected camera is unavailable on this phone."
+                error(failure)
+            }
             val source = Camera.open(id).also { camera = it }
             val parameters = source.parameters
-            val size = parameters.supportedPreviewSizes.minBy { abs(it.width - 640) + abs(it.height - 480) }
+            val size = parameters.supportedPreviewSizes.minBy { abs(it.width - 352) + abs(it.height - 288) }
             parameters.setPreviewSize(size.width, size.height)
             parameters.previewFormat = ImageFormat.NV21
             // 30 fps: the fixed 30 range if there is one, else the range reaching 30 with the highest floor.
@@ -129,7 +149,7 @@ class PhoneCameraActivity : Activity(), SurfaceHolder.Callback {
             source.parameters = parameters
             failure = "The phone could not start camera sharing. Turn on Wi-Fi hotspot or reconnect USB tethering, then try again."
             val share = PhoneFrameServer().also { server = it }
-            failure = "The phone could not start the front camera preview. Close other camera apps and try again."
+            failure = "The phone could not start the camera preview. Close other camera apps and try again."
             val crop = Rect(0, 0, size.width, size.height)
             val bytes = ByteArrayOutputStream()
             val jpegThread = HandlerThread("phone-camera-jpeg").also { it.start(); encoder = it }
@@ -138,7 +158,8 @@ class PhoneCameraActivity : Activity(), SurfaceHolder.Callback {
             var count = 0
             var second = SystemClock.elapsedRealtime()
             var nextSend = 0.0
-            source.setDisplayOrientation((360 - info.orientation) % 360)
+            val frameIntervalMs = 1000.0 / SEND_FPS
+            source.setDisplayOrientation(if (facing == Camera.CameraInfo.CAMERA_FACING_FRONT) (360 - info.orientation) % 360 else info.orientation)
             source.setPreviewDisplay(preview.holder)
             source.setErrorCallback { _, _ -> stopSharing("Camera disconnected. Tap Start to try again.") }
             // Preview buffers are recycled; JPEG encoding runs on its own thread so the camera never waits for it.
@@ -150,8 +171,8 @@ class PhoneCameraActivity : Activity(), SurfaceHolder.Callback {
                 if (now - second >= 1000) { capturedPerSecond = count; count = 0; second = now }
                 // Send SEND_FPS of the camera's ~30: a steady rate the head unit can analyse frame by frame.
                 if (now < nextSend || !encoding.compareAndSet(false, true)) { cam.addCallbackBuffer(data); return@setPreviewCallbackWithBuffer }
-                nextSend = maxOf(nextSend + 1000.0 / SEND_FPS, now - 1000.0 / SEND_FPS)
-                jpeg.post {
+                nextSend = if (now - nextSend > frameIntervalMs) now + frameIntervalMs else nextSend + frameIntervalMs
+                val posted = jpeg.post {
                     try {
                         bytes.reset()
                         if (YuvImage(data, ImageFormat.NV21, size.width, size.height, null).compressToJpeg(crop, 65, bytes)) {
@@ -162,11 +183,16 @@ class PhoneCameraActivity : Activity(), SurfaceHolder.Callback {
                         runCatching { cam.addCallbackBuffer(data) } // the camera may be released by now
                     }
                 }
+                if (!posted) {
+                    encoding.set(false)
+                    runCatching { cam.addCallbackBuffer(data) }
+                }
             }
             source.startPreview()
             captureStarted = SystemClock.elapsedRealtime()
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             button.text = "Stop sharing"
+            lens.isEnabled = false
             main.post(updateAddress)
         }
         result.exceptionOrNull()?.let {
@@ -192,6 +218,7 @@ class PhoneCameraActivity : Activity(), SurfaceHolder.Callback {
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         status.text = message
         button.text = "Start phone camera"
+        lens.isEnabled = true
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {

@@ -1,24 +1,28 @@
 package com.myra.car
 
+import android.net.ConnectivityManager
+import android.net.Network
 import android.os.SystemClock
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.Closeable
 import java.io.DataInputStream
 import java.io.DataOutputStream
+import java.io.IOException
 import java.net.BindException
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
+import java.net.SocketTimeoutException
 import java.security.MessageDigest
 import java.security.SecureRandom
 
 internal const val CAMERA_PORT = 8787
 private const val MAX_JPEG = 512 * 1024
-/** Protocol 2: one connection, the phone pushes every new frame. Protocol 1 (one request per frame) is gone. */
-private const val HELLO = "MYRA-CAM2"
+/** Protocol 3: one connection; the car asks for one photo at a time and analyzes it before asking again. */
+private const val HELLO = "MYRA-CAM3"
 private const val STALE_MS = 1000L
 
 internal class CameraFrame(val id: Long, val rotation: Int, val jpeg: ByteArray)
@@ -39,29 +43,37 @@ internal data class PhoneEndpoint(val address: InetAddress, val port: Int, val c
     }
 }
 
-/** The car's side: a live stream of the phone's frames. [close] from any thread ends a blocked [next]. */
-internal class PhoneStream(phone: PhoneEndpoint) : Closeable {
+/** The car's side: asks the phone for one photo at a time. [close] from any thread ends a blocked [next]. */
+internal class PhoneStream(phone: PhoneEndpoint, network: Network? = null) : Closeable {
     private val socket = Socket()
     private val input: DataInputStream
+    private val output: DataOutputStream
 
     init {
         try {
             socket.tcpNoDelay = true
-            socket.receiveBufferSize = 256 * 1024
+            socket.receiveBufferSize = 48 * 1024
+            network?.bindSocket(socket)
             socket.connect(InetSocketAddress(phone.address, phone.port), 1800)
-            socket.soTimeout = 2500 // the phone sends ~30 frames a second; this long without one means it is gone
-            DataOutputStream(socket.getOutputStream()).apply { writeUTF(HELLO); writeUTF(phone.code); flush() }
+            socket.soTimeout = 2500 // the phone answers a photo request within ~1 s
+            output = DataOutputStream(socket.getOutputStream()).apply { writeUTF(HELLO); writeUTF(phone.code); flush() }
             input = DataInputStream(BufferedInputStream(socket.getInputStream(), 64 * 1024))
-            if (input.readUnsignedByte() != 1) {
-                throw IllegalStateException("Check the camera code on the phone, and that the phone has the latest Myra Phone Camera.")
+            val status = try {
+                input.readUnsignedByte()
+            } catch (e: SocketTimeoutException) {
+                throw IOException("The phone answered, but camera pairing timed out. Update both MYRA apps.", e)
             }
+            if (status != 1) throw IllegalStateException("Camera code rejected. Enter the current 8-digit code shown on the phone.")
         } catch (e: Throwable) {
             socket.close()
             throw e
         }
     }
 
+    /** Requests the phone's newest photo and waits for it. */
     fun next(): CameraFrame {
+        output.writeByte(1)
+        output.flush()
         val id = input.readLong()
         val rotation = input.readUnsignedShort()
         val length = input.readInt()
@@ -72,9 +84,21 @@ internal class PhoneStream(phone: PhoneEndpoint) : Closeable {
     override fun close() = socket.close()
 }
 
+/** Prefer a directly connected tether or Wi-Fi subnet over Android's default internet route. */
+@Suppress("DEPRECATION")
+internal fun cameraNetwork(manager: ConnectivityManager?, phone: PhoneEndpoint): Network? {
+    if (manager == null || phone.address.isLoopbackAddress) return null
+    return manager.allNetworks.mapNotNull { network ->
+        val prefix = manager.getLinkProperties(network)?.routes
+            ?.filter { it.gateway?.isAnyLocalAddress != false && !it.isDefaultRoute && it.matches(phone.address) }
+            ?.maxOfOrNull { it.destination.prefixLength }
+        prefix?.let { network to it }
+    }.maxByOrNull { it.second }?.first
+}
+
 /**
- * The phone's side: pushes each new JPEG to the connected car. A car that reads slower simply gets the newest frame
- * when it is ready (no queue builds up). There is no file and no internet connection.
+ * The phone's side: answers each photo request from the connected car with the newest JPEG, so the car only ever
+ * gets the photo it is about to analyze. There is no file and no internet connection.
  */
 internal class PhoneFrameServer : Closeable {
     val code = SecureRandom().nextInt(100_000_000).toString().padStart(8, '0')
@@ -84,20 +108,20 @@ internal class PhoneFrameServer : Closeable {
     private val lock = Object()
     @Volatile private var activeClient: Socket? = null
     @Volatile var latest: CameraFrame? = null; private set
-    /** Frames written to the car during the last second. */
-    @Volatile var sentPerSecond = 0; private set
+    /** When the last photo was sent to the car (elapsedRealtime), 0 if none yet. */
+    @Volatile var lastSent = 0L; private set
+    val paired get() = activeClient != null
 
     init {
         Thread({
             try {
                 while (!listener.isClosed) {
                     val client = runCatching { listener.accept() }.getOrNull() ?: break
-                    // One car at a time; a reconnecting car replaces a connection that may be dead but not yet timed out.
-                    activeClient?.close()
-                    activeClient = client
                     Thread({
                         client.use { runCatching { serve(it) } }
-                        if (activeClient === client) sentPerSecond = 0
+                        synchronized(lock) {
+                            if (activeClient === client) activeClient = null
+                        }
                     }, "phone-camera-client").start()
                 }
             } finally {
@@ -115,7 +139,7 @@ internal class PhoneFrameServer : Closeable {
         if (!socket.inetAddress.isCameraAddress()) return
         socket.soTimeout = 800
         socket.tcpNoDelay = true
-        socket.sendBufferSize = 256 * 1024
+        socket.sendBufferSize = 48 * 1024
         val input = DataInputStream(socket.getInputStream())
         val hello = input.readUTF()
         val supplied = input.readUTF()
@@ -125,34 +149,42 @@ internal class PhoneFrameServer : Closeable {
             output.flush()
             return
         }
+        synchronized(lock) {
+            if (listener.isClosed) return
+            activeClient?.close()
+            activeClient = socket
+            lock.notifyAll()
+        }
         output.writeByte(1)
         output.flush()
+        socket.soTimeout = 30_000 // the car asks again only after analyzing the last photo
         var sent = Long.MIN_VALUE
-        var count = 0
-        var second = SystemClock.elapsedRealtime()
         while (!listener.isClosed && activeClient === socket) {
+            if (input.read() != 1) return
+            val deadline = SystemClock.elapsedRealtime() + 2000
             val frame = synchronized(lock) {
-                if (latest.let { it == null || it.id == sent }) lock.wait(500)
-                latest
-            }
-            val now = SystemClock.elapsedRealtime()
-            if (now - second >= 1000) { sentPerSecond = count; count = 0; second = now }
-            if (frame == null || frame.id == sent || now - frame.id > STALE_MS) continue
+                fun fresh(f: CameraFrame?) = f != null && f.id != sent && SystemClock.elapsedRealtime() - f.id <= STALE_MS
+                while (!fresh(latest) && activeClient === socket && SystemClock.elapsedRealtime() < deadline) lock.wait(100)
+                latest.takeIf(::fresh)
+            } ?: return // no fresh photo: the car reconnects
             output.writeLong(frame.id)
             output.writeShort(frame.rotation)
             output.writeInt(frame.jpeg.size)
             output.write(frame.jpeg)
             output.flush()
             sent = frame.id
-            count++
+            lastSent = SystemClock.elapsedRealtime()
         }
     }
 
     override fun close() {
         listener.close()
-        activeClient?.close()
-        activeClient = null
-        synchronized(lock) { latest = null; lock.notifyAll() }
+        synchronized(lock) {
+            activeClient?.close()
+            activeClient = null
+            latest = null
+            lock.notifyAll()
+        }
     }
 }
 
@@ -174,7 +206,11 @@ internal fun phoneAddresses(): List<String> = NetworkInterface.getNetworkInterfa
     .filterNot { it.name.startsWith("tun") || it.name.contains("rmnet") || it.name.startsWith("ccmni") }
     .sortedBy { iface ->
         val name = iface.name
-        if (listOf("ap", "swlan", "rndis", "usb", "ncm").any(name::startsWith)) 0 else 1
+        when {
+            listOf("rndis", "usb", "ncm", "eth").any(name::startsWith) -> 0
+            listOf("ap", "swlan", "softap", "wlan").any(name::startsWith) -> 1
+            else -> 2
+        }
     }
     .flatMap { it.inetAddresses.toList() }
     .filter { it.isCameraAddress() && !it.isLoopbackAddress }

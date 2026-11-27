@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import java.io.ByteArrayOutputStream
 import java.util.concurrent.BlockingQueue
 
 /**
@@ -15,6 +16,8 @@ class Recorder {
     private val chunkBytes = SAMPLE_RATE / 10 * 2
     private val ring = ArrayDeque<ByteArray>()
     private var sink: BlockingQueue<ByteArray>? = null
+    private var capture: ByteArrayOutputStream? = null
+    private var recordingCommand = false
     @Volatile private var record: AudioRecord? = null
 
     /** Bytes of audio sent to the current [sink] (16-bit mono: bytes / 32 = ms). */
@@ -46,31 +49,46 @@ class Recorder {
                     if (record !== rec) return@synchronized
                     ring.addLast(buf)
                     while (ring.size > PREROLL_MS / 100) ring.removeFirst()
-                    sink?.let { it.put(buf); sentBytes += buf.size; peakRms = maxOf(peakRms, rms(buf)) }
+                    if (recordingCommand) {
+                        sink?.put(buf)
+                        capture?.write(buf)
+                        sentBytes += buf.size
+                        peakRms = maxOf(peakRms, rms(buf))
+                    }
                 }
             }
         }, "mic").apply { priority = Thread.MAX_PRIORITY }.start()
         return true
     }
 
-    /** Starts sending audio (the pre-roll first) to [queue]. */
-    fun start(queue: BlockingQueue<ByteArray>) = synchronized(this) {
+    /** Starts collecting audio (the pre-roll first) for upload, local identification, or both. */
+    fun start(queue: BlockingQueue<ByteArray>? = null, captureVoice: Boolean = false) = synchronized(this) {
         sentBytes = 0
         peakRms = 0.0
-        for (b in ring) { queue.put(b); sentBytes += b.size }
+        capture = if (captureVoice) ByteArrayOutputStream() else null
+        for (b in ring) { queue?.put(b); sentBytes += b.size; capture?.write(b) }
         sink = queue
+        recordingCommand = true
     }
 
     /** Ends the current command; returns its length in ms. */
     fun stop(): Long = synchronized(this) {
         sink?.put(ByteArray(0))
         sink = null
+        recordingCommand = false
         sentBytes / (SAMPLE_RATE * 2 / 1000)
     }
+
+    fun takeVoice(): ByteArray? = synchronized(this) {
+        capture?.toByteArray().also { capture = null }
+    }
+
+    fun clearPreroll() = synchronized(this) { ring.clear() }
 
     fun close() {
         val rec = synchronized(this) {
             stop()
+            capture = null
             ring.clear()
             record.also { record = null }
         }
@@ -89,6 +107,9 @@ class Recorder {
     }
 
     companion object {
+        fun samples(pcm: ByteArray) = FloatArray(pcm.size / 2) { i ->
+            ((pcm[2 * i].toInt() and 0xFF) or (pcm[2 * i + 1].toInt() shl 8)) / 32768f
+        }
         const val SAMPLE_RATE = 16000
         const val PREROLL_MS = 400
         // ~-42 dBFS: room or engine hum stays below, any spoken word goes above. Silence sent to Sarvam's translate

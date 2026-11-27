@@ -4,7 +4,7 @@ package com.myra.car
  * What a command did: the reply shown, the command as logged on the server (null = none), and the
  * [CarAudio] intent to apply to the head unit's real audio (null = the classifier's intent, or none).
  */
-data class Outcome(val reply: String, val command: Map<String, Any>?, val audio: String? = null)
+data class Outcome(val reply: String, val command: Map<String, Any>?, val audio: String? = null, val genre: String? = null)
 
 /**
  * The car state the demo shows (music and volume also drive the head unit's real audio, see [CarAudio]), and how an [Understanding] of an English sentence changes it.
@@ -17,6 +17,18 @@ class Car {
     var volume = 12; private set
     var playing = false; private set
     var destination: String? = null; private set
+    internal var light = CabinColor.BLUE; private set
+    var seatHeight = 3; private set
+
+    internal fun cabin() = Cabin(acOn, temp, fan, light, seatHeight)
+
+    internal fun restore(cabin: Cabin) {
+        acOn = cabin.acOn
+        temp = cabin.temp
+        fan = cabin.fan
+        light = cabin.light
+        seatHeight = cabin.seatHeight
+    }
 
     /** Starts from the head unit's real music volume, so "turn it up" goes up from what the driver hears. */
     fun syncVolume(value: Int) { volume = value.coerceIn(0, 30) }
@@ -25,6 +37,7 @@ class Car {
         if (u.confidence < MIN_CONFIDENCE) return Outcome("Sorry, I didn't catch that. Please say it again.", null)
         val action = u.intent in ACTIONS
         if (action && u.negated > 0.5f) return Outcome("Okay, I won't do that.", null)
+        Car.action(u.intent, text, u.slots)?.let { return run(it) }
         val step = amount(text)
         return when (u.intent) {
             "climate_temperature_up" -> setTemp(temp + step, "Warming up to")
@@ -42,6 +55,11 @@ class Car {
             "media_next" -> { playing = true; Outcome("Next track.", cmd(u.intent)) }
             "media_previous" -> { playing = true; Outcome("Previous track.", cmd(u.intent)) }
             "navigation_destination_request" -> place(text)?.let { lookUp(it) } ?: Outcome("Where would you like to go?", null)
+            "climate_fan_speed_set" -> Outcome("Which fan level? Say a number from 0 to 7.", null)
+            "volume_set" -> Outcome("Which volume? Say a number from 0 to 30.", null)
+            "ambient_light_set" -> Outcome("Which ambient light colour?", null)
+            "seat_height_set" -> Outcome("Which seat height? Say a level from 1 to 5.", null)
+            "shortcut_define", "shortcut_delete" -> Outcome("Say the shortcut's name and what it should do.", null)
             "dialog_confirm" -> Outcome("Okay.", null)
             "dialog_cancel" -> Outcome("Okay, cancelled.", null)
             "unsupported" -> Outcome("Sorry, I can't do that in this car.", null)
@@ -66,7 +84,27 @@ class Car {
                 val out = setVolume(when { a.optBoolean("mute") -> 0; a.has("value") -> a.optInt("value"); else -> volume + a.optInt("delta", 4) })
                 out.copy(audio = if (volume >= before) "volume_up" else "volume_down")
             }
-            "media.play" -> { playing = true; Outcome(a.optString("genre").takeIf { it.isNotEmpty() }?.let { "Playing $it music." } ?: "Playing music.", cmd("media_play"), "media_play") }
+            "media.play" -> {
+                playing = true
+                val genre = a.optString("genre").takeIf { it.isNotBlank() }
+                val track = genre?.let(DemoTrack::from)
+                val reply = when {
+                    track != null -> "Playing ${track.title}."
+                    genre != null -> "Playing $genre music."
+                    else -> "Playing music."
+                }
+                Outcome(reply, if (track == null) cmd("media_play") else cmd("media_play", "genre" to track.key),
+                    "media_play", track?.key)
+            }
+            "ambient.color" -> {
+                val color = CabinColor.from(a.optString("color")) ?: return Outcome("Which ambient light color?", null)
+                light = color
+                Outcome("Ambient lighting set to ${color.key}.", cmd(type, "color" to color.key))
+            }
+            "seat.height" -> {
+                seatHeight = a.optInt("value", seatHeight + a.optInt("delta")).coerceIn(Cabin.SEAT_HEIGHT_RANGE)
+                Outcome("Seat height set to level $seatHeight.", cmd(type, "value" to seatHeight))
+            }
             "media.pause" -> { playing = false; Outcome("Music paused.", cmd("media_pause"), "media_pause") }
             "media.skip" -> { playing = true; if (a.optInt("dir", 1) < 0) Outcome("Previous track.", cmd("media_previous"), "media_previous") else Outcome("Next track.", cmd("media_next"), "media_next") }
             "nav.start" -> a.optString("destination").takeIf { it.isNotBlank() }?.let { lookUp(it) }
@@ -80,20 +118,20 @@ class Car {
         }
     }
 
-    /** A destination request: the app searches Google Places for it and starts navigation once one is picked. */
-    private fun lookUp(place: String) = Outcome("Looking up $place on Google Maps…", cmd(NAV_REQUEST, "destination" to place))
-
-    /** The route Google Maps is guiding (null: none). */
-    fun navigate(to: String?) { destination = to }
+    /** A destination request: shown as the car's route (the demo has no map). */
+    private fun lookUp(place: String): Outcome {
+        destination = place
+        return Outcome("Navigating to $place.", cmd(NAV_REQUEST, "destination" to place))
+    }
 
     private fun setTemp(value: Int, verb: String): Outcome {
-        temp = value.coerceIn(16, 30)
+        temp = value.coerceIn(Cabin.TEMPERATURE_RANGE)
         acOn = true
         return Outcome("$verb $temp°C.", cmd("climate_temperature_set", "value" to temp))
     }
 
     private fun setFan(value: Int): Outcome {
-        fan = value.coerceIn(0, 7)
+        fan = value.coerceIn(Cabin.FAN_RANGE)
         return Outcome(if (fan == 0) "Fan is off." else "Fan speed $fan.", cmd("climate_fan_speed", "value" to fan))
     }
 
@@ -111,26 +149,48 @@ class Car {
             "climate_temperature_up", "climate_temperature_down", "climate_temperature_set", "climate_fan_speed_up",
             "climate_fan_speed_down", "climate_on", "climate_off", "volume_up", "volume_down", "media_play",
             "media_pause", "media_next", "media_previous", "navigation_destination_request",
+            "climate_fan_speed_set", "volume_set", "volume_mute", "ambient_light_set", "seat_up", "seat_down",
+            "seat_height_set", "navigation_stop",
         )
-        /** A classifier intent as an action ([run]'s form), for shortcuts saved without the LLM. Null: not an action. */
-        fun action(intent: String, text: String): org.json.JSONObject? {
+        /**
+         * A classifier intent as an action ([run]'s form). Values come from the words the model tagged in [slots]
+         * (TEMP, LEVEL, COLOR, GENRE, PLACE), else from the sentence. Null: not an action, or a needed value is missing.
+         */
+        fun action(intent: String, text: String, slots: Map<String, String> = emptyMap()): org.json.JSONObject? {
             val step = amount(text)
+            val level = slots["LEVEL"]?.let(::level) ?: level(text)
+            // "turn the fan down to two", "cool it down to 20": a tagged target value wins over a step.
+            val target = when (intent) {
+                "climate_temperature_up", "climate_temperature_down" -> "climate_temperature_set".takeIf { slots["TEMP"] != null }
+                "climate_fan_speed_up", "climate_fan_speed_down" -> "climate_fan_speed_set".takeIf { slots["LEVEL"] != null }
+                "volume_up", "volume_down" -> "volume_set".takeIf { slots["LEVEL"] != null }
+                else -> null
+            }
+            if (target != null) action(target, text, slots)?.let { return it }
             fun j(type: String, vararg kv: Pair<String, Any>) = org.json.JSONObject().put("type", type).apply { kv.forEach { put(it.first, it.second) } }
             return when (intent) {
                 "climate_temperature_up" -> j("climate.adjustTemp", "delta" to step)
                 "climate_temperature_down" -> j("climate.adjustTemp", "delta" to -step)
-                "climate_temperature_set" -> temperature(text)?.let { j("climate.setTemp", "value" to it) }
+                "climate_temperature_set" -> (slots["TEMP"]?.let(::temperature) ?: temperature(text))?.let { j("climate.setTemp", "value" to it) }
                 "climate_fan_speed_up" -> j("climate.fan", "delta" to step)
                 "climate_fan_speed_down" -> j("climate.fan", "delta" to -step)
                 "climate_on" -> j("climate.power", "on" to true)
                 "climate_off" -> j("climate.power", "on" to false)
                 "volume_up" -> j("media.volume", "delta" to 2 * step)
                 "volume_down" -> j("media.volume", "delta" to -2 * step)
-                "media_play" -> j("media.play")
+                "media_play" -> slots["GENRE"]?.let(DemoTrack::from)?.let { j("media.play", "genre" to it.key) } ?: j("media.play")
                 "media_pause" -> j("media.pause")
                 "media_next" -> j("media.skip", "dir" to 1)
                 "media_previous" -> j("media.skip", "dir" to -1)
-                "navigation_destination_request" -> place(text)?.let { j("nav.start", "destination" to it) }
+                "navigation_destination_request" -> (slots["PLACE"]?.let(::place) ?: place(text))?.let { j("nav.start", "destination" to it) }
+                "climate_fan_speed_set" -> level?.takeIf { it in Cabin.FAN_RANGE }?.let { j("climate.fan", "value" to it) }
+                "volume_set" -> level?.takeIf { it in 0..30 }?.let { j("media.volume", "value" to it) }
+                "volume_mute" -> j("media.volume", "mute" to true)
+                "ambient_light_set" -> (slots["COLOR"]?.let(CabinColor::from) ?: colorIn(text))?.let { j("ambient.color", "color" to it.key) }
+                "seat_up" -> j("seat.height", "delta" to 1)
+                "seat_down" -> j("seat.height", "delta" to -1)
+                "seat_height_set" -> level?.takeIf { it in Cabin.SEAT_HEIGHT_RANGE }?.let { j("seat.height", "value" to it) }
+                "navigation_stop" -> j("nav.stop")
                 else -> null
             }
         }
@@ -144,7 +204,9 @@ class Car {
                 "climate.power" -> if (a.optBoolean("on", true)) "AC on" else "AC off"
                 "climate.fan" -> if (a.has("value")) "Fan ${a.optInt("value")}" else "Fan ${signed("delta")}"
                 "media.volume" -> when { a.optBoolean("mute") -> "Mute"; a.has("value") -> "Volume ${a.optInt("value")}"; else -> "Volume ${signed("delta")}" }
-                "media.play" -> a.optString("genre").takeIf { it.isNotEmpty() }?.let { "Play $it" } ?: "Play music"
+                "media.play" -> a.optString("genre").takeIf { it.isNotEmpty() }?.let { "Play $it music" } ?: "Play music"
+                "ambient.color" -> "Ambient light: ${a.optString("color")}"
+                "seat.height" -> if (a.has("value")) "Seat height ${a.optInt("value")}" else "Seat height ${signed("delta")}"
                 "media.pause" -> "Pause music"
                 "media.skip" -> if (a.optInt("dir", 1) < 0) "Previous track" else "Next track"
                 "nav.start" -> "Navigate to ${a.optString("destination")}"
@@ -174,6 +236,21 @@ class Car {
         private val LOT = Regex("""\b(a lot|lots|very|much|maximum|max|full|really|way)\b""")
         private val TO_PLACE = Regex("""\b(?:to|towards|till|until|for)\s+(?:the\s+)?(.+)$""")
         private val NAV_WORDS = Regex("""\b(please|navigate|navigation|take me|take us|drive|go|start|route|directions?|show|me|the way|now|let's|lets|can you|could you|i want to|to)\b""")
+
+        private val SMALL_NUMBERS = listOf("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+            "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen")
+
+        /** A level 0-30 as digits or words ("4", "four", "twenty five"); null when the text has none. */
+        fun level(text: String): Int? {
+            val t = text.lowercase().replace('-', ' ')
+            Regex("""\b([0-9]|[12][0-9]|30)\b""").find(t)?.let { return it.value.toInt() }
+            WORD_NUMBERS.entries.sortedByDescending { it.key.length }.firstOrNull { Regex("""\b${it.key}\b""").containsMatchIn(t) }?.let { return it.value }
+            return SMALL_NUMBERS.indexOfFirst { Regex("""\b$it\b""").containsMatchIn(t) }.takeIf { it >= 0 }
+        }
+
+        /** The first ambient colour named anywhere in the text. */
+        internal fun colorIn(text: String): CabinColor? =
+            Regex("""[a-z]+""").findAll(text.lowercase()).firstNotNullOfOrNull { CabinColor.from(it.value) }
 
         /** 1 step by default and for "a little"; 3 for "a lot". */
         fun amount(text: String): Int {

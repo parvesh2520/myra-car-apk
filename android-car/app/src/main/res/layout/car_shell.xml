@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg"
+    android:orientation="horizontal">
+
+    <!-- Sidebar: one entry per screen. Assistant and Shortcuts share Myra's models; the others run alone. -->
+    <LinearLayout
+        android:layout_width="184dp"
+        android:layout_height="match_parent"
+        android:background="@color/surface"
+        android:orientation="vertical"
+        android:paddingStart="10dp"
+        android:paddingTop="18dp"
+        android:paddingEnd="10dp"
+        android:paddingBottom="14dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14dp"
+            android:text="Myra"
+            android:textColor="@color/ink"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14dp"
+            android:layout_marginBottom="14dp"
+            android:text="In-car assistant"
+            android:textColor="@color/ink3"
+            android:textSize="12sp" />
+
+        <LinearLayout
+            android:id="@+id/myraTab"
+            style="@style/NavItem">
+
+            <ImageView
+                style="@style/NavIcon"
+                android:src="@drawable/ic_chat" />
+
+            <TextView
+                style="@style/NavLabel"
+                android:text="Assistant" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/shortcutsTab"
+            style="@style/NavItem">
+
+            <ImageView
+                style="@style/NavIcon"
+                android:src="@drawable/ic_bolt" />
+
+            <TextView
+                style="@style/NavLabel"
+                android:text="Shortcuts" />
+
+            <TextView
+                android:id="@+id/shortcutCount"
+                android:layout_width="wrap_content"
+                android:layout_height="20dp"
+                android:background="@drawable/badge"
+                android:gravity="center"
+                android:minWidth="26dp"
+                android:paddingStart="7dp"
+                android:paddingEnd="7dp"
+                android:text="0"
+                android:textColor="@color/accent"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/meterTab"
+            style="@style/NavItem">
+
+            <ImageView
+                style="@style/NavIcon"
+                android:src="@drawable/ic_eye" />
+
+            <TextView
+                style="@style/NavLabel"
+                android:text="Drowsiness" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/voiceTab"
+            style="@style/NavItem">
+
+            <ImageView
+                style="@style/NavIcon"
+                android:src="@drawable/ic_wave" />
+
+            <TextView
+                style="@style/NavLabel"
+                android:text="Voice ID" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <TextView
+            android:id="@+id/openPhoneCamera"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/button_quiet"
+            android:drawableStart="@drawable/ic_camera"
+            android:drawablePadding="10dp"
+            android:drawableTint="@color/ink2"
+            android:gravity="center_vertical"
+            android:paddingStart="14dp"
+            android:text="Phone camera"
+            android:textColor="@color/ink2"
+            android:textSize="14sp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/system"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14dp"
+            android:lineSpacingExtra="3dp"
+            android:textColor="@color/ink3"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1">
+
+        <include
+            android:id="@+id/myraPane"
+            layout="@layout/main" />
+
+        <include
+            android:id="@+id/shortcutsPane"
+            layout="@layout/shortcuts"
+            android:visibility="gone" />
+
+        <FrameLayout
+            android:id="@+id/meterPane"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
+        <FrameLayout
+            android:id="@+id/voicePane"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />    </FrameLayout>
+</LinearLayout>

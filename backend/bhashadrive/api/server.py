@@ -296,6 +296,8 @@ def create_app(config: AppConfig | None = None, pipeline=None, legacy: bool = Fa
         print(f"[API /transcribe] {name} {res.latency_s}s status={res.status} asr={res.hypotheses or [asr_text]} -> refined={ranked}")
         return {"text": text, "hypotheses": ranked, "asr_text": asr_text, "asr_hypotheses": res.hypotheses,
                 "status": res.status, "error": res.error, "engine": name, "speaker": who,
+                # time the recogniser itself took (Sarvam speech-to-English); the car shows it beside network time
+                "asr_ms": round((res.latency_s or 0) * 1000),
                 # the spoken language (our code, e.g. "ta"): the cockpit replies in it
                 "language": (detected(res.language).code if detected(res.language) else None)}
 

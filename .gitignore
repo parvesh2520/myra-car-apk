@@ -6,3 +6,15 @@ __pycache__/
 dist/
 gradle-build.log
 backend/*.log
+
+# Android/Gradle build output and local machine settings
+.gradle/
+**/build/
+android-car/app/.cxx/
+local.properties
+# trained LLM checkpoints and GGUF (hosted on Hugging Face)
+backend/models/llm/
+backend/models/*.log
+*.keystore
+*.jks
+android-car/*.log

@@ -1,5 +1,7 @@
 # MYRA car app (Android APK)
 
+For the native 32-bit head-unit build and the phone-camera drowsiness demo, see [the Android car guide](android-car/README.md).
+
 MYRA running inside the car's Android head unit. The screen is the MYRA UI. The car's command model (a Gemma 3 270M
 fine-tuned on the cockpit's commands) runs on the head unit itself. Speech recognition and translation run in the
 cloud (Sarvam, through the Render backend): whatever language or mix the driver speaks, the car's model receives English.

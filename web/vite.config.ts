@@ -19,3 +19,4 @@ export default defineConfig(({ mode }) => {
     server: { port: 5173, host: phone || undefined, proxy: { '/api': 'http://127.0.0.1:8000' } },
   };
 });
+

@@ -16,6 +16,8 @@ from ..config import NavConfig
 
 URL = "https://routes.googleapis.com/directions/v2:computeRoutes"
 FIELDS = "routes.duration,routes.distanceMeters,routes.travelAdvisory.tollInfo"
+PLACES_URL = "https://places.googleapis.com/v1/places:searchText"
+PLACE_FIELDS = "places.displayName,places.formattedAddress,places.location"
 
 
 class LatLng(BaseModel):
@@ -28,15 +30,50 @@ class RouteIn(BaseModel):
     destination: str = Field(min_length=1, max_length=100)
 
 
+class PlacesIn(BaseModel):
+    query: str = Field(min_length=1, max_length=100)
+    near: LatLng | None = None
+
+
 class RouteService:
     def __init__(self, config: NavConfig, client: httpx.Client | None = None):
         self.config = config
         self.client = client or httpx.Client(transport=IPv4First())
 
-    def route(self, origin: LatLng, destination: str) -> dict:
+    def _post(self, url: str, body: dict, fields: str) -> dict:
         c = self.config
         if not c.google_maps_api_key:
             raise HTTPException(503, {"code": "not_configured", "message": "GOOGLE_MAPS_API_KEY is not set."})
+        try:
+            r = self.client.post(url, json=body, timeout=c.timeout_s,
+                                 headers={"X-Goog-Api-Key": c.google_maps_api_key, "X-Goog-FieldMask": fields})
+        except httpx.TimeoutException:
+            raise HTTPException(504, {"code": "timeout", "message": "The maps service did not answer in time."})
+        except httpx.HTTPError:
+            raise HTTPException(502, {"code": "network", "message": "The maps service is not reachable."})
+        if r.status_code != 200:
+            # The key never appears here: only Google's status and the first part of its message.
+            msg = (r.json().get("error", {}).get("message", "") if r.headers.get("content-type", "").startswith("application/json") else "")[:200]
+            raise HTTPException(502, {"code": "maps_error", "message": f"Maps service error {r.status_code}. {msg}".strip()})
+        return r.json()
+
+    def places(self, query: str, near: LatLng | None) -> list[dict]:
+        """Up to 3 Google Places (Text Search) for `query`, nearest-biased when the car's position is known."""
+        body: dict = {"textQuery": query, "maxResultCount": 3, "regionCode": "in", "languageCode": "en-IN"}
+        if near is not None:
+            body["locationBias"] = {"circle": {"center": {"latitude": near.lat, "longitude": near.lng}, "radius": 50000.0}}
+        found = self._post(PLACES_URL, body, PLACE_FIELDS).get("places") or []
+        out = []
+        for p in found:
+            loc = p.get("location") or {}
+            if "latitude" not in loc or "longitude" not in loc:
+                continue
+            out.append({"name": (p.get("displayName") or {}).get("text") or query, "address": p.get("formattedAddress", ""),
+                        "lat": loc["latitude"], "lng": loc["longitude"]})
+        return out
+
+    def route(self, origin: LatLng, destination: str) -> dict:
+        c = self.config
         body = {
             "origin": {"location": {"latLng": {"latitude": origin.lat, "longitude": origin.lng}}},
             "destination": {"address": destination},
@@ -48,18 +85,7 @@ class RouteService:
             "languageCode": "en-IN",
             "units": "METRIC",
         }
-        try:
-            r = self.client.post(URL, json=body, timeout=c.timeout_s,
-                                 headers={"X-Goog-Api-Key": c.google_maps_api_key, "X-Goog-FieldMask": FIELDS})
-        except httpx.TimeoutException:
-            raise HTTPException(504, {"code": "timeout", "message": "The maps service did not answer in time."})
-        except httpx.HTTPError:
-            raise HTTPException(502, {"code": "network", "message": "The maps service is not reachable."})
-        if r.status_code != 200:
-            # The key never appears here: only Google's status and the first part of its message.
-            msg = (r.json().get("error", {}).get("message", "") if r.headers.get("content-type", "").startswith("application/json") else "")[:200]
-            raise HTTPException(502, {"code": "maps_error", "message": f"Maps service error {r.status_code}. {msg}".strip()})
-        routes = r.json().get("routes") or []
+        routes = self._post(URL, body, FIELDS).get("routes") or []
         if not routes:  # Google's answer when the address is not found or no road route exists
             raise HTTPException(404, {"code": "no_route", "message": f"No driving route found to {destination}."})
         return summarize(routes[0], destination, c)
@@ -85,6 +111,13 @@ def nav_router(service: RouteService) -> APIRouter:
     @r.post("/route")
     def route(body: RouteIn):
         return service.route(body.origin, body.destination.strip())
+
+    @r.post("/places")
+    def places(body: PlacesIn):
+        query = body.query.strip()
+        if not query:
+            raise HTTPException(422, "Empty query")
+        return {"query": query, "places": service.places(query, body.near)}
 
     @r.get("/status")
     def status():

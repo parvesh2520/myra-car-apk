@@ -1,0 +1,24 @@
+{
+ "labels": [
+  "climate_temperature_up",
+  "climate_temperature_down",
+  "climate_temperature_set",
+  "climate_fan_speed_up",
+  "climate_fan_speed_down",
+  "climate_on",
+  "climate_off",
+  "volume_up",
+  "volume_down",
+  "media_play",
+  "media_pause",
+  "media_next",
+  "media_previous",
+  "navigation_destination_request",
+  "dialog_confirm",
+  "dialog_cancel",
+  "unsupported",
+  "ambiguous"
+ ],
+ "max_len": 32,
+ "lowercase": true
+}

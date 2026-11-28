@@ -9,7 +9,7 @@
     <!-- Status bar -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="40dp"
+        android:layout_height="52dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingStart="24dp"
@@ -22,7 +22,7 @@
             android:format12Hour="h:mm"
             android:format24Hour="HH:mm"
             android:textColor="@color/ink"
-            android:textSize="18sp" />
+            android:textSize="22sp" />
 
         <TextClock
             android:layout_width="wrap_content"
@@ -31,7 +31,7 @@
             android:format12Hour="EEE d MMM"
             android:format24Hour="EEE d MMM"
             android:textColor="@color/ink3"
-            android:textSize="13sp" />
+            android:textSize="15sp" />
 
         <View
             android:layout_width="0dp"
@@ -70,6 +70,13 @@
             android:textColor="@color/ink2"
             android:textSize="13sp" />
     </LinearLayout>
+
+    <!-- Lit in the cabin's ambient-light colour, like the trim strip in the dash. -->
+    <View
+        android:id="@+id/ambientLine"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/accent" />
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -178,6 +185,11 @@
             </LinearLayout>
         </ScrollView>
 
+        <View
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:background="@color/line" />
+
         <FrameLayout
             android:layout_width="0dp"
             android:layout_height="match_parent"
@@ -211,6 +223,11 @@
                 android:visibility="gone" />
         </FrameLayout>
     </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/line" />
 
     <!-- Climate bar: always on screen, like a head unit's HVAC strip. Scrolls on narrow displays. -->
     <HorizontalScrollView

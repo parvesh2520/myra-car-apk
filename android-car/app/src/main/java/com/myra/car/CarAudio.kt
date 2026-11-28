@@ -18,6 +18,10 @@ internal class CarAudio(private val context: Context) {
     var track: DemoTrack? = null
         private set
 
+    /** Playback position and length of the demo track, in ms; 0 when none is loaded. */
+    val position get() = player?.currentPosition ?: 0
+    val duration get() = player?.duration ?: 0
+
     val volume get() = (audio.getStreamVolume(AudioManager.STREAM_MUSIC) * 30f / max).roundToInt()
 
     /** Applies what the command did to [car] to the real audio. */

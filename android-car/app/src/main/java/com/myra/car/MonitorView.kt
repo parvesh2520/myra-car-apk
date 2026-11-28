@@ -62,7 +62,7 @@ internal class MonitorView(context: Context, private val mode: MonitorMode, priv
         setSelection(prefs.getInt("doorSide", DoorSide.RIGHT.ordinal).coerceIn(DoorSide.entries.indices))
         minimumHeight = dp(40)
     }
-    private val level = label("Camera off", 20f, R.color.accent).apply { setTypeface(typeface, android.graphics.Typeface.BOLD) }
+    private val level = label("Camera off", 20f, R.color.ink).apply { typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL) }
     private val details = (if (mode == MonitorMode.DROWSINESS) listOf(
         "Alertness score", "Eyes closed now", "Eyes closed over 30 s",
     ) else listOf("Objects detected")).associateWith { label("—", 14f, R.color.ink) }
@@ -72,24 +72,24 @@ internal class MonitorView(context: Context, private val mode: MonitorMode, priv
     init {
         orientation = VERTICAL
         setBackgroundColor(context.getColor(R.color.bg))
-        setPadding(dp(4), dp(8), dp(16), dp(16))
+        setPadding(dp(24), dp(20), dp(24), dp(20))
         addView(label(mode.title, 22f, R.color.ink).apply { typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL) })
         addView(LinearLayout(context).apply {
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(10), 0, 0)
+            setPadding(0, dp(16), 0, 0)
             addView(host)
             addView(code)
             addView(start)
             addView(stop)
         })
-        addView(status.apply { setPadding(0, dp(4), 0, dp(8)) })
+        addView(status.apply { setPadding(0, dp(8), 0, dp(16)) })
         addView(LinearLayout(context).apply {
             addView(preview.apply { setBackgroundResource(R.drawable.panel) }, LayoutParams(0, -1, 3f))
             addView(ScrollView(context).apply {
                 setBackgroundResource(R.drawable.panel)
                 addView(LinearLayout(context).apply {
                     orientation = VERTICAL
-                    setPadding(dp(12), dp(12), dp(12), dp(12))
+                    setPadding(dp(20), dp(20), dp(20), dp(20))
                     addView(level)
                     addView(label("Parked demonstration", 12f, R.color.ink2))
                     if (mode == MonitorMode.SAFE_EXIT) {
@@ -98,7 +98,7 @@ internal class MonitorView(context: Context, private val mode: MonitorMode, priv
                     }
                     for ((name, value) in details) addView(metric(name, value))
                 }, -1, -2)
-            }, LayoutParams(0, -1, 2f).apply { marginStart = dp(12) })
+            }, LayoutParams(0, -1, 2f).apply { marginStart = dp(16) })
         }, LayoutParams(-1, 0, 1f))
         if (mode == MonitorMode.SAFE_EXIT) preview.overlay(DoorSide.entries[side.selectedItemPosition].zone, null)
         stop.isEnabled = false
@@ -278,14 +278,14 @@ internal class MonitorView(context: Context, private val mode: MonitorMode, priv
 
     private fun showState(message: String) {
         level.text = message
-        level.setTextColor(context.getColor(R.color.accent))
+        level.setTextColor(context.getColor(R.color.ink))
         details.values.forEach { it.text = "—" }
     }
 
     private fun showDrowsiness(m: DrowsinessTracker.Metrics) {
         val warning = m.level in listOf(DrowsinessTracker.Level.ASLEEP, DrowsinessTracker.Level.DROWSY, DrowsinessTracker.Level.TIRING)
         level.text = m.level.label
-        level.setTextColor(context.getColor(if (warning) R.color.warn else R.color.accent))
+        level.setTextColor(context.getColor(if (warning) R.color.warn else R.color.ink))
         val shown = listOf("${m.alertness}%", "%.1f s".format(m.closedMs / 1000.0), "${m.perclos}%")
         details.values.zip(shown).forEach { (view, value) -> view.text = value }
     }
@@ -297,7 +297,7 @@ internal class MonitorView(context: Context, private val mode: MonitorMode, priv
             reading.approaching -> "${candidate.label} approaching door zone"
             else -> "${candidate.label} in door zone"
         }
-        level.setTextColor(context.getColor(if (candidate == null) R.color.accent else R.color.warn))
+        level.setTextColor(context.getColor(if (candidate == null) R.color.ink else R.color.warn))
         details.getValue("Objects detected").text = reading.objects.size.toString()
     }
 

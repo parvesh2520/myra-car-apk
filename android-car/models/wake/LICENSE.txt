@@ -1,0 +1,4 @@
+melspectrogram.onnx, embedding_model.onnx: openWakeWord v0.5.1 feature models (https://github.com/dscripka/openWakeWord),
+Apache-2.0; the embedding model is Google's speech_embedding (Apache-2.0).
+silero_vad.onnx: Silero VAD (https://github.com/snakers4/silero-vad), MIT.
+myra_wake.onnx, wake_calibration.json: trained for this app by tools/wake_word/train_wake.py.

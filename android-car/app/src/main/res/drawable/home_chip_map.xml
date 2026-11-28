@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Chip floating over the map: nearly opaque so it reads over streets. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true"><shape><solid android:color="#F222324A" /><corners android:radius="999dp" /><stroke android:width="1dp" android:color="@color/home_line_strong" /></shape></item>
+    <item><shape><solid android:color="#EB111B28" /><corners android:radius="999dp" /><stroke android:width="1dp" android:color="@color/home_line" /></shape></item>
+</selector>

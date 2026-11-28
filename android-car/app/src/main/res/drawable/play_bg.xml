@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Play: an off-white key, so the accent stays for the mic and the route. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true"><shape android:shape="oval"><solid android:color="@color/ink2" /></shape></item>
+    <item><shape android:shape="oval"><solid android:color="@color/ink" /></shape></item>
+</selector>

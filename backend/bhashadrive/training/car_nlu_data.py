@@ -249,6 +249,17 @@ T: dict[str, list[str]] = {
         "volume", "temperature", "change something", "make it different", "that one", "more", "less",
         "the music", "the light", "the seat", "can you help with this", "hmm",
     ],
+    # Saying hello to Myra (the demo's first words: "Hi Myra"). Sarvam may spell the name several ways.
+    "greeting": [
+        "!hi myra", "!hello myra", "!hey myra", "!hi", "!hello", "!hey", "!hi there", "!hello there",
+        "!hey there myra", "!hi maira", "!hello maira", "!hi mira", "!hey mira", "!hi mayra", "!hello mayra",
+        "!hi myra how are you", "!hello myra how are you", "!hey myra how are you doing", "!hi myra good morning",
+        "!good morning myra", "!good evening myra", "!good afternoon myra", "!good morning", "!good evening",
+        "!namaste myra", "!namaste", "!hii myra", "!hi myra i'm here", "!hello myra it's me", "!myra hi",
+        "!myra hello", "!ok myra hi", "!okay myra hello", "!hi myra nice to see you", "!hello again myra",
+        "!hi myra let's go", "!hey hi myra", "!hello hello myra", "!hi myra good evening", "!hey myra hello",
+        "!hi verna", "!hello verna", "!hi, myra", "!hello, myra", "!hey, myra", "!hi, mira", "!hi myra!", "!hi there myra how's it going", "!good morning myra how are you",
+    ],
     "dialog_confirm": ["yes", "yeah", "yes please", "sure", "go ahead", "do it", "okay do that", "correct",
                        "that's right", "yep", "sounds good", "absolutely", "please do"],
     "dialog_cancel": ["no", "cancel", "never mind", "no thanks", "leave it", "forget it", "don't", "stop",

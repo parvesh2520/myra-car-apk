@@ -12,6 +12,9 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -24,9 +27,13 @@ import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
+import android.widget.EditText
 import android.widget.ScrollView
+import android.widget.Switch
 import android.widget.TextView
 import org.json.JSONArray
+import org.osmdroid.config.Configuration
+import org.osmdroid.util.GeoPoint
 import org.json.JSONObject
 import java.io.File
 import java.util.Calendar
@@ -35,7 +42,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.LinkedBlockingQueue
 
 /**
- * MYRA car app: hold the mic (or tap to start, tap to send), Sarvam turns the speech into English on the Render
+ * MYRA car app: say "Okay Myra …" (see [HandsFree]), hold the mic, or tap to start and tap to send; Sarvam turns the speech into English on the Render
  * backend, and the car's MiniLM classifier decides what to do: a saved shortcut first, then a shortcut being taught
  * or deleted, then each request in the sentence ("set the AC to 22 and play music"). Every step is timed.
  */
@@ -45,6 +52,8 @@ class MainActivity : Activity() {
     private var net: ExecutorService? = null
     private var backend: Backend? = null
     private val recorder = Recorder()
+    @Volatile private var handsFree: HandsFree? = null // made on work, used on main and the mic thread
+    private var ignoreWakeBefore = 0L // stream position where Myra last stopped speaking: her own "Myra" doesn't count
     private val car = Car()
     private val cameraPairing = CameraPairing()
     private lateinit var carAudio: CarAudio
@@ -55,6 +64,7 @@ class MainActivity : Activity() {
     private var voiceMatchAvailable = false
     private var announcedUnknownVoice = false
     private var greeted = false
+    private var speakReplies = true // the driver's "Speak replies" switch, kept across launches
     private lateinit var shortcuts: Shortcuts // main thread only
     private lateinit var learned: Learned // main thread only; what the driver meant when Myra had to ask
     private var classifier: Classifier? = null // Accessed only by work.
@@ -82,12 +92,59 @@ class MainActivity : Activity() {
     private lateinit var mediaState: TextView
     private lateinit var mediaSub: TextView
     private lateinit var mediaArt: ImageView
+    private lateinit var mediaCover: View
+    private lateinit var mediaProgressRow: View
+    private lateinit var mediaProgress: ProgressBar
+    private lateinit var mediaElapsed: TextView
+    private lateinit var mediaTotal: TextView
+    private var lastTrack = DemoTrack.CALM
+    /** Moves the home player's progress bar once a second while a demo track plays. */
+    private val progressTick = object : Runnable {
+        override fun run() {
+            renderProgress()
+            if (carAudio.track != null && car.playing) main.postDelayed(this, 1000)
+        }
+    }
     private lateinit var mediaPlay: ImageView
-    private lateinit var navIcon: ImageView
+    private lateinit var greeting: TextView
+    private lateinit var greetingSub: TextView
+    private lateinit var tryText: TextView
     private lateinit var driver: TextView
     private lateinit var acControl: View
     private lateinit var acIcon: ImageView
-    private lateinit var volumeBar: ProgressBar
+    private lateinit var ambientLine: View
+    private lateinit var map: HomeMap
+    private lateinit var mapNote: TextView
+    private lateinit var saveHome: TextView
+    private lateinit var roadName: TextView
+    private lateinit var weatherIcon: ImageView
+    private lateinit var weatherTemp: TextView
+    private lateinit var weatherSky: TextView
+    private lateinit var weatherPlace: TextView
+    private lateinit var weatherRange: TextView
+    private lateinit var weatherMore: TextView
+    // Road label and weather widget, refreshed from GPS fixes (main thread).
+    private var roadAt: Location? = null
+    private var roadBusy = false
+    private var weatherAt = 0L
+    private val places by lazy { Places(this) }
+    private var shownDestination: String? = null // the destination the map is showing a trip to
+    private var tripNote: String? = null
+    private var tripId = 0
+    private val locations by lazy { getSystemService(LocationManager::class.java) }
+    private val onLocation = object : LocationListener {
+        override fun onLocationChanged(l: Location) {
+            val first = map.position == null
+            map.show(l)
+            drove(l)
+            if (shownDestination == null) mapNote.text = ""
+            else if (first) showTrip() // the trip was asked for before the car knew where it was
+        }
+        // Android 10 has no default bodies for these: leaving them out crashes when a provider toggles.
+        @Deprecated("") override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
+        override fun onProviderEnabled(provider: String) {}
+        override fun onProviderDisabled(provider: String) {}
+    }
     private lateinit var volumeText: TextView
     private lateinit var navDest: TextView
     private lateinit var navSub: TextView
@@ -119,12 +176,18 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Configuration.getInstance().apply { // before the map view is inflated
+            userAgentValue = packageName
+            osmdroidBasePath = File(cacheDir, "osm")
+            osmdroidTileCache = File(cacheDir, "osm/tiles")
+        }
         setContentView(R.layout.car_shell)
         carAudio = CarAudio(this)
         cabinVoice = CabinVoice(this) { speaking ->
             carAudio.duck(speaking || recording)
             if (!speaking) {
                 recorder.clearPreroll()
+                ignoreWakeBefore = recorder.position
                 if (modelReady && !busy && !recording) readyStatus()
                 queuedQuestion?.let { question ->
                     queuedQuestion = null
@@ -164,12 +227,54 @@ class MainActivity : Activity() {
         mediaState = findViewById(R.id.mediaState)
         mediaSub = findViewById(R.id.mediaSub)
         mediaArt = findViewById(R.id.mediaArt)
+        mediaCover = findViewById(R.id.mediaCover)
+        mediaProgressRow = findViewById(R.id.mediaProgressRow)
+        mediaProgress = findViewById(R.id.mediaProgress)
+        mediaElapsed = findViewById(R.id.mediaElapsed)
+        mediaTotal = findViewById(R.id.mediaTotal)
         mediaPlay = findViewById(R.id.mediaPlay)
-        navIcon = findViewById(R.id.navIcon)
         driver = findViewById(R.id.driver)
         acControl = findViewById(R.id.acControl)
         acIcon = findViewById(R.id.acIcon)
-        volumeBar = findViewById(R.id.volumeBar)
+        ambientLine = findViewById(R.id.ambientLine)
+        map = findViewById(R.id.map)
+        mapNote = findViewById(R.id.mapNote)
+        // The map note only shows while it has something to say.
+        mapNote.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) { mapNote.visibility = if (s.isNullOrEmpty()) View.GONE else View.VISIBLE }
+        })
+        saveHome = findViewById(R.id.saveHome)
+        roadName = findViewById(R.id.roadName)
+        weatherIcon = findViewById(R.id.weatherIcon)
+        weatherTemp = findViewById(R.id.weatherTemp)
+        weatherSky = findViewById(R.id.weatherSky)
+        weatherPlace = findViewById(R.id.weatherPlace)
+        weatherRange = findViewById(R.id.weatherRange)
+        weatherMore = findViewById(R.id.weatherMore)
+        val quickKeys = findViewById<LinearLayout>(R.id.quickKeys)
+        val quickIcons = listOf(R.drawable.ic_fuel, R.drawable.ic_parking, R.drawable.ic_food, R.drawable.ic_hospital)
+        for ((place, icon) in Places.QUICK.keys.zip(quickIcons)) {
+            quickKeys.addView(TextView(this).apply {
+                text = place
+                textSize = 13f
+                setTextColor(getColor(R.color.home_ink))
+                gravity = Gravity.CENTER_VERTICAL
+                setBackgroundResource(R.drawable.home_chip_map)
+                maxLines = 1
+                setCompoundDrawablesRelative(getDrawable(icon)!!.mutate().apply {
+                    setTint(getColor(R.color.home_ink2)); setBounds(0, 0, dp(16), dp(16))
+                }, null, null, null)
+                compoundDrawablePadding = dp(8)
+                setPadding(dp(12), 0, dp(14), 0)
+                contentDescription = "Route to the nearest ${place.lowercase()}"
+                setOnClickListener { tap(JSONObject().put("type", "nav.start").put("destination", place)) }
+            }, LinearLayout.LayoutParams(-2, -1).apply { marginEnd = dp(8) })
+        }
+        map.home = places.home
+        car.homeSaved = map.home != null
+        saveHome.setOnClickListener { setHome() }
         volumeText = findViewById(R.id.volumeText)
         navDest = findViewById(R.id.navDest)
         navSub = findViewById(R.id.navSub)
@@ -189,26 +294,62 @@ class MainActivity : Activity() {
         findViewById<View>(R.id.tempUp).setOnClickListener { tap(JSONObject().put("type", "climate.adjustTemp").put("delta", 1)) }
         findViewById<View>(R.id.fanDown).setOnClickListener { tap(JSONObject().put("type", "climate.fan").put("delta", -1)) }
         findViewById<View>(R.id.fanUp).setOnClickListener { tap(JSONObject().put("type", "climate.fan").put("delta", 1)) }
-        findViewById<View>(R.id.mediaPrev).setOnClickListener { tap(JSONObject().put("type", "media.skip").put("dir", -1)) }
-        findViewById<View>(R.id.mediaNext).setOnClickListener { tap(JSONObject().put("type", "media.skip").put("dir", 1)) }
-        mediaPlay.setOnClickListener { tap(JSONObject().put("type", if (car.playing) "media.pause" else "media.play")) }
+        // With no track loaded, the home player's keys start the app's demo music.
+        findViewById<View>(R.id.mediaPrev).setOnClickListener { tap(if (carAudio.track == null) playDemo() else JSONObject().put("type", "media.skip").put("dir", -1)) }
+        findViewById<View>(R.id.mediaNext).setOnClickListener { tap(if (carAudio.track == null) playDemo() else JSONObject().put("type", "media.skip").put("dir", 1)) }
+        findViewById<View>(R.id.volumeDown).setOnClickListener { tap(JSONObject().put("type", "media.volume").put("delta", -2)) }
+        findViewById<View>(R.id.volumeUp).setOnClickListener { tap(JSONObject().put("type", "media.volume").put("delta", 2)) }
+        mediaPlay.setOnClickListener {
+            tap(when {
+                car.playing -> JSONObject().put("type", "media.pause")
+                carAudio.track == null -> playDemo()
+                else -> JSONObject().put("type", "media.play")
+            })
+        }
         shortcutSummary = findViewById(R.id.shortcutSummary)
         shortcutList = findViewById(R.id.shortcutList)
         for (i in 0 until 7) fanBars.addView(View(this), LinearLayout.LayoutParams(dp(6), dp(8 + 3 * i)).apply { marginEnd = dp(3) })
 
+        val prefs = getSharedPreferences("myra", Context.MODE_PRIVATE)
+        speakReplies = prefs.getBoolean("speakReplies", true)
+        findViewById<Switch>(R.id.speakReplies).apply {
+            isChecked = speakReplies
+            setOnCheckedChangeListener { _, on ->
+                speakReplies = on
+                prefs.edit().putBoolean("speakReplies", on).apply()
+                if (!on && pendingQuestion == null) cabinVoice.stop()
+            }
+        }
+        if (!android.provider.Settings.canDrawOverlays(this) && !prefs.getBoolean("askedAutoStart", false)) {
+            prefs.edit().putBoolean("askedAutoStart", true).apply()
+            AlertDialog.Builder(this)
+                .setTitle("Open Myra when the car starts?")
+                .setMessage("Allow “Display over other apps” for MYRA, and it will open by itself every time the car turns on.")
+                .setPositiveButton("Allow") { _, _ ->
+                    runCatching { startActivity(Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        android.net.Uri.parse("package:$packageName"))) }
+                }
+                .setNegativeButton("Not now", null)
+                .show()
+        }
         mic.setOnTouchListener { _, e -> onMicTouch(e); true }
         val chips = findViewById<LinearLayout>(R.id.chips)
         for (text in EXAMPLES) {
             chips.addView(TextView(this).apply {
                 this.text = text
-                setTextColor(getColor(R.color.ink2))
+                setTextColor(getColor(R.color.home_ink2))
                 textSize = 13f
-                setBackgroundResource(R.drawable.chip)
-                setPadding(dp(16), dp(10), dp(16), dp(10))
+                setBackgroundResource(R.drawable.home_chip)
+                setPadding(dp(14), dp(8), dp(14), dp(8))
                 layoutParams = LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(8) }
                 setOnClickListener { if (!busy && !recording) typed(text) }
             })
         }
+        greeting = findViewById(R.id.greeting)
+        greetingSub = findViewById(R.id.greetingSub)
+        tryText = findViewById(R.id.tryText)
+        findViewById<View>(R.id.tryCard).setOnClickListener { if (!busy && !recording) typed(tryText.tag as String) }
+        findViewById<View>(R.id.navCard).clipToOutline = true // round the map's corners to the card
         renderState()
         renderTabs()
         renderShortcuts()
@@ -298,15 +439,30 @@ class MainActivity : Activity() {
                 }
                 voiceMatchAvailable = canMatch
                 c.exceptionOrNull()?.let { status.text = "Model failed to load: ${it.message}. Tap Home to retry." }
-                    ?: run { status.text = "Hold the mic and speak"; modelLoadMs = SystemClock.elapsedRealtime() - t }
+                    ?: run { readyStatus(); modelLoadMs = SystemClock.elapsedRealtime() - t }
                 renderSystem()
                 if (modelReady && !greeted) greet()
             }
+            if (c.isFailure || id != generation) return@execute
+            // Loaded after Myra is ready: the first launch also copies the 68 MB model out of the APK.
+            val hf = runCatching {
+                HandsFree(this, onWake = { pos -> main.post { if (id == generation) wake(pos) } },
+                    onEnd = { main.post { if (id == generation && recording && handsFreeCommand) send() } })
+            }.onFailure { android.util.Log.w("Myra", "wake word unavailable", it) }.getOrNull()
+            main.post {
+                if (id != generation) { hf?.let { work.execute { it.close() } }; return@post }
+                handsFree = hf
+                recorder.tap = hf?.let { it::onAudio }
+                if (!busy && !recording) readyStatus()
+            }
         }
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) openMic()
-        else if (!askedForMic) {
+        // One dialog for both: Android drops a second request made while the first is showing.
+        val missing = arrayOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.ACCESS_FINE_LOCATION)
+            .filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
+        if (missing.isNotEmpty() && !askedForMic) {
             askedForMic = true
-            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 1)
+            requestPermissions(missing.toTypedArray(), 1)
         }
         main.post(keepAlive)
     }
@@ -319,9 +475,13 @@ class MainActivity : Activity() {
         backend = null
         net?.shutdownNow()
         net = null
+        recorder.tap = null
+        val oldHandsFree = handsFree
+        handsFree = null
         recorder.close()
         recording = false
         toggleMode = false
+        handsFreeCommand = false
         busy = false
         heardSpeech = false
         voiceSample = null
@@ -339,6 +499,7 @@ class MainActivity : Activity() {
             speaker?.close()
             speaker = null
             oldBackend?.close()
+            oldHandsFree?.close()
         }
     }
 
@@ -376,8 +537,11 @@ class MainActivity : Activity() {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode != 1 || !usesMyra(tab) || !inForeground) return
-        if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) openMic()
+        if (requestCode != 1 || !inForeground) return
+        if (Manifest.permission.ACCESS_FINE_LOCATION in permissions) startLocation()
+        val mic = permissions.indexOf(Manifest.permission.RECORD_AUDIO)
+        if (mic < 0 || !usesMyra(tab)) return
+        if (grantResults.getOrNull(mic) == PackageManager.PERMISSION_GRANTED) openMic()
         else status.text = "Microphone permission is needed to talk to Myra."
     }
 
@@ -391,10 +555,140 @@ class MainActivity : Activity() {
         car.syncVolume(carAudio.volume)
         renderState()
         openTab()
+        startLocation()
+    }
+
+    /** Home for "take me home": an address searched on the map, or where the car is now. */
+    private fun setHome() {
+        val field = EditText(this).apply {
+            hint = "Home address, e.g. Hill Road, Bandra"
+            setSingleLine()
+            setBackgroundResource(R.drawable.field)
+            setTextColor(getColor(R.color.ink))
+            setHintTextColor(getColor(R.color.ink3))
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+        }
+        val here = map.position
+        val box = FrameLayout(this).apply { setPadding(dp(24), dp(8), dp(24), 0); addView(field) }
+        AlertDialog.Builder(this)
+            .setTitle(if (places.home == null) "Set home" else "Change home")
+            .setMessage(if (here != null) "Search for your home address, or save where the car is now." else "Search for your home address.")
+            .setView(box)
+            .setPositiveButton("Search") { _, _ ->
+                val query = field.text.toString().trim()
+                if (query.isEmpty()) return@setPositiveButton
+                mapNote.text = "Finding $query…"
+                Thread {
+                    val found = runCatching { places.search(query, map.position) }
+                    main.post {
+                        val p = found.getOrNull()
+                        if (p != null) saveHomeAt(p)
+                        else mapNote.text = if (found.isFailure) "Couldn't reach the map service" else "Couldn't find “$query”"
+                    }
+                }.start()
+            }
+            .apply { if (here != null) setNeutralButton("Use current location") { _, _ -> saveHomeAt(here) } }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun saveHomeAt(p: GeoPoint) {
+        places.home = p
+        map.home = p
+        car.homeSaved = true
+        map.look(p)
+        mapNote.text = "Home saved"
+        renderState()
+    }
+
+    /** Shows the trip to [shownDestination] on the home map: looked up and routed off the main thread, then animated. */
+    private fun showTrip() {
+        val id = ++tripId
+        val dest = shownDestination
+        tripNote = null
+        if (dest == null) {
+            map.clearTrip()
+            mapNote.text = if (map.position != null) "" else "Finding your location"
+            return
+        }
+        val from = map.position
+        if (from == null) { tripNote = "Waiting for your location"; return }
+        mapNote.text = "Finding $dest…"
+        Thread {
+            val found = runCatching {
+                places.find(dest, from)?.let { to ->
+                    // Demo: already there (home saved where the car stands), so the trip starts ~3 km away.
+                    val start = if (from.distanceToAsDouble(to) < 500) GeoPoint(from.latitude + 0.02, from.longitude + 0.015) else from
+                    places.route(start, to)
+                }
+            }
+            main.post {
+                if (id != tripId) return@post
+                val route = found.getOrNull()
+                tripNote = when {
+                    found.isFailure -> "Couldn't reach the map service"
+                    route == null -> "Couldn't find $dest on the map"
+                    else -> "%.1f km · demo trip".format(route.km)
+                }
+                if (route == null) mapNote.text = ""
+                else {
+                    mapNote.text = "Route to $dest"
+                    map.drive(route.points)
+                }
+                renderState()
+            }
+        }.start()
+    }
+
+    /** One GPS fix: throttled, off the main thread, the map's road name and the weather widget. */
+    private fun drove(l: Location) {
+        val here = GeoPoint(l.latitude, l.longitude)
+        if (!roadBusy && (roadAt?.distanceTo(l) ?: Float.MAX_VALUE) > 150) {
+            roadBusy = true
+            Thread {
+                val spot = runCatching { places.spot(here) }.getOrNull()
+                main.post {
+                    roadBusy = false
+                    if (spot == null) return@post
+                    roadAt = l
+                    spot.road?.let { roadName.text = it; roadName.visibility = View.VISIBLE }
+                    spot.area?.let { weatherPlace.text = it }
+                }
+            }.start()
+        }
+        val now = SystemClock.elapsedRealtime()
+        if (weatherAt == 0L || now - weatherAt > 15 * 60_000) {
+            weatherAt = now
+            Thread {
+                val w = runCatching { places.weather(here) }.getOrNull()
+                main.post {
+                    if (w == null) { weatherAt = now - 14 * 60_000; return@post } // retry in a minute
+                    weatherIcon.setImageResource(w.icon)
+                    weatherTemp.text = "${w.temp}°"
+                    weatherSky.text = w.sky
+                    weatherRange.text = "High ${w.high}° · Low ${w.low}°"
+                    weatherMore.text = "Humidity ${w.humidity}% · Wind ${w.windKmh} km/h"
+                }
+            }.start()
+        }
+    }
+
+    /** Follows the car on the home map with GPS and network fixes, whichever arrives. */
+    private fun startLocation() {
+        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            mapNote.text = "Location permission is off"
+            return
+        }
+        locations.removeUpdates(onLocation)
+        val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER).filter { locations.isProviderEnabled(it) }
+        if (providers.isEmpty()) { mapNote.text = "Location is turned off"; return }
+        providers.mapNotNull { locations.getLastKnownLocation(it) }.maxByOrNull { it.time }?.let(onLocation::onLocationChanged)
+        for (p in providers) locations.requestLocationUpdates(p, 2000L, 5f, onLocation, Looper.getMainLooper())
     }
 
     override fun onStop() {
         inForeground = false
+        locations.removeUpdates(onLocation)
         when (tab) {
             MYRA, SHORTCUTS -> pauseMyra()
             METER, SAFE_EXIT -> { generation++; closeMonitor() }
@@ -435,7 +729,15 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun startRecording() {
+    /** The wake word ended at stream byte [pos]: record the command from there, as if the mic had been tapped. */
+    private fun wake(pos: Long) {
+        if (!inForeground || !usesMyra(tab) || recording || busy || cabinVoice.speaking) return
+        if (pos < ignoreWakeBefore && ignoreWakeBefore <= recorder.position) return // still Myra's own voice
+        startRecording(pos)
+    }
+
+    /** [from]: hands-free, the command starts at this stream position and ends when the driver stops speaking. */
+    private fun startRecording(from: Long? = null) {
         if (!modelReady) { status.text = "The model is still loading…"; return }
         if (cabinVoice.speaking) {
             status.text = "Myra is speaking… try the mic when she finishes."
@@ -453,11 +755,20 @@ class MainActivity : Activity() {
         pendingTranscript = null
         tPress = SystemClock.elapsedRealtime()
         recording = true
-        toggleMode = false
+        toggleMode = from != null // hands-free: a tap on the mic sends at once
+        handsFreeCommand = from != null
         val queue = LinkedBlockingQueue<ByteArray>()
-        recorder.start(queue, captureVoice = activeDriver == null && voiceMatchAvailable)
+        val captureVoice = activeDriver == null && voiceMatchAvailable
+        // The first hands-free words before a profile is set ("Hi Myra"): voice ID also hears the wake word, and
+        // when nothing follows within FIRST_WAKE_WAIT_MS it was a greeting ([greetFromWake]).
+        firstWake = from != null && captureVoice
+        val cmd = ++commandSeq
+        if (from != null) {
+            handsFree?.beginCommand(from, if (firstWake) FIRST_WAKE_WAIT_MS else Endpointer.NO_SPEECH_MS)
+            recorder.startAt(from, queue, captureVoice, voiceFrom = maxOf(from - WAKE_LOOKBACK_MS * 32, ignoreWakeBefore))
+        } else recorder.start(queue, captureVoice)
         carAudio.duck(true)
-        status.text = "Listening… release to send"
+        status.text = if (from != null) "Listening… I’ll send when you stop speaking" else "Listening… release to send"
         startPulse()
         // The upload starts now and runs while the driver speaks.
         executor.execute {
@@ -465,7 +776,7 @@ class MainActivity : Activity() {
                 .getOrElse { Transcript("", null, "Can't reach the speech service (${it.javaClass.simpleName}).") }
             val tHeard = SystemClock.elapsedRealtime()
             main.post {
-                if (id != generation) return@post
+                if (id != generation || cmd == droppedCommand) return@post
                 if (recording) pendingTranscript = transcript to tHeard else heard(transcript, tHeard)
             }
         }
@@ -474,6 +785,10 @@ class MainActivity : Activity() {
 
     private val autoSend = Runnable { if (recording) send() }
 
+    private var handsFreeCommand = false
+    private var firstWake = false
+    private var commandSeq = 0
+    private var droppedCommand = -1 // a command answered without its transcript
     private var tReleased = 0L
     private var heardSpeech = false
     private var voiceSample: ByteArray? = null
@@ -481,8 +796,10 @@ class MainActivity : Activity() {
 
     private fun send() {
         main.removeCallbacks(autoSend)
+        handsFree?.endCommand()
         recording = false
         toggleMode = false
+        handsFreeCommand = false
         busy = true
         tReleased = SystemClock.elapsedRealtime()
         recorder.stop()
@@ -490,16 +807,26 @@ class MainActivity : Activity() {
         carAudio.duck(false)
         heardSpeech = recorder.peakRms >= Recorder.SPEECH_RMS
         stopPulse()
+        val sample = voiceSample
+        if (firstWake && !heardSpeech && sample != null) {
+            firstWake = false
+            voiceSample = null
+            droppedCommand = commandSeq
+            pendingTranscript = null
+            return greetFromWake(sample)
+        }
+        firstWake = false
         status.text = "Recognising…"
         pendingTranscript?.let { (transcript, _) -> heard(transcript, tReleased) }
         pendingTranscript = null
     }
 
-    private fun heard(t: Transcript, tHeard: Long) {
+    private fun heard(raw: Transcript, tHeard: Long) {
         val sample = voiceSample.also { voiceSample = null }
+        val t = raw.copy(text = Wake.strip(raw.text))
         if (!heardSpeech) { // only silence was recorded: whatever came back was not said
             busy = false
-            status.text = "I didn't hear anything. Hold the mic and speak."
+            status.text = "I didn't hear anything. Say “Okay Myra” or hold the mic."
             return
         }
         if (t.text.isBlank()) {
@@ -520,18 +847,19 @@ class MainActivity : Activity() {
                 speaker?.close()
                 speaker = null
             }
+            // "Hi Myra" as the first words: the profile line is the whole reply.
+            val greeting = match != null && runCatching { classifier?.classify(t.text) }.getOrNull()
+                ?.let { it.intent == "greeting" && it.confidence >= Car.MIN_CONFIDENCE } == true
             main.post {
                 if (id != generation) return@post
                 if (match != null) {
-                    activeDriver = match.profile
-                    voiceMatchAvailable = false
-                    car.restore(cabins.load(match.profile))
-                    val message = "Welcome back, ${match.profile}. I recognised your voice and restored your cabin settings. " +
-                        "AC ${if (car.acOn) "on" else "off"}, temperature ${car.temp} degrees, fan level ${car.fan}, " +
-                        "${car.light.key} ambient lighting, and seat height level ${car.seatHeight}."
-                    showReply(addCommand("Driver profile · ${match.profile}"), message, null)
-                    renderState()
-                    cabinVoice.speak(VoiceLines.DRIVER_MATCHED)
+                    val line = setProfile(match.profile, if (greeting) t.text else "Driver profile · ${match.profile}", greeting)
+                    if (greeting) {
+                        busy = false
+                        readyStatus()
+                        net?.execute { backend?.log(t.text, emptyList(), MODEL, 0, t.engine, line) }
+                        return@post
+                    }
                 } else if (!announcedUnknownVoice) {
                     announcedUnknownVoice = true
                     val message = VoiceLines.DRIVER_UNKNOWN
@@ -539,6 +867,46 @@ class MainActivity : Activity() {
                     cabinVoice.speak(message)
                 }
                 understand(t.text, t.engine) { r -> timeline(t, tHeard, r.ms) }
+            }
+        }
+    }
+
+    /**
+     * Loads the recognised driver's cabin and says so; returns the spoken line. A greeting gets the whole
+     * "I have set your profile" line; before a command only "Hi Kanishk.", then the command (which wins over the
+     * profile: "set the AC to 20" with 22 saved ends at 20).
+     */
+    private fun setProfile(profile: String, entry: String, greeting: Boolean): String {
+        activeDriver = profile
+        voiceMatchAvailable = false
+        car.restore(cabins.load(profile))
+        val cabin = "AC ${if (car.acOn) "on" else "off"} · ${car.temp}°C · fan ${car.fan} · " +
+            "${car.light.key} light · seat ${car.seatHeight}"
+        val line = if (greeting) VoiceLines.driverMatched(profile) else VoiceLines.hiDriver(profile)
+        showReply(addCommand(entry), if (greeting) line.replace("Hi,", "Hi $profile,") else "Hi $profile, your profile is loaded.", cabin)
+        renderState()
+        cabinVoice.speak(line)
+        return line
+    }
+
+    /** The first wake word with nothing after it ("Hi Myra"): recognise the voice from it and greet the driver. */
+    private fun greetFromWake(sample: ByteArray) {
+        status.text = "Recognising your voice…"
+        val id = generation
+        work.execute {
+            if (id != generation) return@execute
+            val match = runCatching { speaker?.identify(Recorder.samples(sample)) }.getOrNull()
+            if (match != null) {
+                speaker?.close()
+                speaker = null
+            }
+            main.post {
+                if (id != generation) return@post
+                busy = false
+                readyStatus()
+                val line = match?.let { setProfile(it.profile, "Hi Myra", greeting = true) }
+                    ?: VoiceLines.hello(null).also { showReply(addCommand("Hi Myra"), it, null); cabinVoice.speak(it) }
+                net?.execute { backend?.log("Hi Myra", emptyList(), MODEL, 0, null, line) }
             }
         }
     }
@@ -571,7 +939,8 @@ class MainActivity : Activity() {
     }
 
     private fun readyStatus() {
-        status.text = if (pendingQuestion == null) "Hold the mic and speak" else "Hold the mic to answer"
+        val how = if (handsFree != null) "Say “Okay Myra” or hold the mic" else "Hold the mic"
+        status.text = if (pendingQuestion == null) "$how and speak" else "$how to answer"
     }
 
     private fun clearQuestion() {
@@ -604,7 +973,8 @@ class MainActivity : Activity() {
     }
 
     /** What one sentence did: the reply, which model decided, how long it took, and the commands to log. */
-    private class Reply(val text: String, val detail: String, val ms: Long, val commands: List<Map<String, Any>>)
+    /** [spoken]: what Myra says aloud, when it differs from the [text] on screen. */
+    private class Reply(val text: String, val detail: String, val ms: Long, val commands: List<Map<String, Any>>, val spoken: String = text)
 
     /** Runs actions in [Car.run]'s form, including saving or deleting shortcuts, and joins their replies. */
     private fun runActions(actions: List<JSONObject>): Pair<String, List<Map<String, Any>>> {
@@ -665,6 +1035,7 @@ class MainActivity : Activity() {
             busy = false
             readyStatus()
             showReply(entry, r.text, listOfNotNull("$MODEL · ${r.detail}", timing(r)).joinToString("\n"))
+            if (speakReplies && r.detail != "clarification") cabinVoice.speakAfter(VoiceLines.forReply(r.spoken)) // a question speaks itself
             saveCabinChange(before)
             renderState()
             executor.execute { api.log(text, r.commands, MODEL, r.ms, asr, r.text) }
@@ -672,7 +1043,7 @@ class MainActivity : Activity() {
         fun runShortcut(shortcut: Shortcuts.Shortcut, match: String, ms: Long) {
             val (reply, commands) = runActions(shortcut.actions)
             val name = shortcut.name.replaceFirstChar { it.uppercase() }
-            finish(Reply("$name: $reply", "$match, ${shortcut.actions.size} actions", ms, commands))
+            finish(Reply("$name: $reply", "$match, ${shortcut.actions.size} actions", ms, commands, spoken = reply))
         }
         fun ask(question: CabinQuestion, ms: Long) {
             finish(Reply(question.text, "clarification", ms, emptyList()))
@@ -777,7 +1148,9 @@ class MainActivity : Activity() {
                     u == null -> finish(Reply("I couldn't understand the command. Try again.", "no action understood", ms, emptyList()))
                     else -> {
                         car.syncVolume(carAudio.volume)
-                        val outcome = car.apply(u, text)
+                        val outcome = car.apply(u, text).let {
+                            if (u.intent == "greeting" && u.confidence >= Car.MIN_CONFIDENCE) it.copy(reply = VoiceLines.hello(activeDriver)) else it
+                        }
                         if (outcome.command != null) runCatching { carAudio.apply(u.intent, car) }
                         val detail = "${u.intent} ${(u.confidence * 100).toInt()}%" + if (u.negated > 0.5f) " · negated" else ""
                         finish(Reply(outcome.reply, detail, ms, listOfNotNull(outcome.command)))
@@ -797,7 +1170,7 @@ class MainActivity : Activity() {
         }
         row.addView(TextView(this).apply {
             this.text = text
-            setTextColor(getColor(R.color.ink2))
+            setTextColor(getColor(R.color.home_ink2))
             textSize = 14f
         })
         log.addView(row)
@@ -809,13 +1182,13 @@ class MainActivity : Activity() {
     private fun showReply(row: LinearLayout, reply: String, note: String?) {
         row.addView(TextView(this).apply {
             text = reply
-            setTextColor(getColor(R.color.ink))
+            setTextColor(getColor(R.color.home_ink))
             textSize = 16f
             setPadding(0, dp(4), 0, 0)
         })
         if (note != null) row.addView(TextView(this).apply {
             text = note
-            setTextColor(getColor(R.color.ink3))
+            setTextColor(getColor(R.color.home_ink3))
             textSize = 11f
             setLineSpacing(dp(1).toFloat(), 1f)
             setPadding(0, dp(4), 0, 0)
@@ -828,7 +1201,7 @@ class MainActivity : Activity() {
         acControl.isActivated = car.acOn
         acIcon.setColorFilter(getColor(if (car.acOn) R.color.accent else R.color.ink3))
         tempValue.text = "${car.temp}°"
-        for (i in 0 until fanBars.childCount) fanBars.getChildAt(i).setBackgroundColor(getColor(if (i < car.fan) R.color.accent else R.color.line))
+        for (i in 0 until fanBars.childCount) fanBars.getChildAt(i).setBackgroundColor(getColor(if (i < car.fan) R.color.ink else R.color.line))
         fanText.text = if (car.fan == 0) "Off" else "${car.fan}"
         seatText.text = "Level ${car.seatHeight}"
         val light = car.light
@@ -840,23 +1213,58 @@ class MainActivity : Activity() {
         val track = carAudio.track
         mediaState.text = track?.title ?: if (car.playing) "Bluetooth audio" else "Nothing playing"
         mediaSub.text = when {
-            car.playing -> "Now playing"
-            track != null -> "Paused"
-            else -> "Media"
+            car.playing -> "Bluetooth · Playing"
+            track != null -> "Bluetooth · Paused"
+            else -> "Bluetooth audio"
         }
-        mediaSub.setTextColor(getColor(if (car.playing) R.color.accent else R.color.ink3))
-        mediaArt.setColorFilter(getColor(if (car.playing) R.color.accent else R.color.ink3))
+        if (track != null) {
+            lastTrack = track
+            mediaSub.text = "Demo music · ${track.mood}" + if (car.playing) "" else " · Paused"
+            mediaCover.background = GradientDrawable().apply { cornerRadius = dp(14).toFloat(); setColor(track.art) }
+            mediaArt.setColorFilter(getColor(R.color.home_ink))
+        } else {
+            mediaCover.setBackgroundResource(R.drawable.home_tile)
+            mediaArt.setColorFilter(getColor(if (car.playing) R.color.home_ink else R.color.home_ink3))
+        }
+        mediaProgressRow.visibility = if (track != null) View.VISIBLE else View.GONE
+        main.removeCallbacks(progressTick)
+        progressTick.run()
         mediaPlay.setImageResource(if (car.playing) R.drawable.ic_pause else R.drawable.ic_play)
         mediaPlay.contentDescription = if (car.playing) "Pause" else "Play"
-        volumeBar.progress = car.volume
         volumeText.text = "${car.volume}"
         val destination = car.destination
         navDest.text = destination ?: "Where to?"
-        navSub.text = if (destination != null) "Route set" else "Navigation · say “take me to …”"
-        navSub.setTextColor(getColor(if (destination != null) R.color.accent else R.color.ink3))
-        navIcon.setColorFilter(getColor(if (destination != null) R.color.accent else R.color.ink3))
+        if (destination != shownDestination) {
+            shownDestination = destination
+            showTrip()
+        }
+        saveHome.text = if (map.home == null) "Set home" else "Change home"
+        navSub.text = tripNote ?: if (destination != null) "Finding the route…" else "Say “take me to …”"
+        ambientLine.setBackgroundColor(0xB0000000.toInt() or light.rgb)
+        navSub.setTextColor(getColor(if (destination != null) R.color.home_accent else R.color.home_ink2))
         driver.text = activeDriver ?: "Guest"
+        val now = Calendar.getInstance()
+        greeting.text = "${VoiceLines.salutation(now.get(Calendar.HOUR_OF_DAY))}, ${activeDriver ?: "Guest"}"
+        greetingSub.text = java.text.SimpleDateFormat("EEEE, d MMMM", java.util.Locale.getDefault()).format(now.time) + " · Welcome back"
+        // Like Myra UI's banner: a new example every quarter hour.
+        val example = EXAMPLES[(now.get(Calendar.HOUR_OF_DAY) * 4 + now.get(Calendar.MINUTE) / 15) % EXAMPLES.size]
+        tryText.tag = example
+        tryText.text = "“$example”"
     }
+
+    /** The demo track the home player starts when nothing is loaded: the last one played. */
+    private fun playDemo() = JSONObject().put("type", "media.play").put("genre", lastTrack.key)
+
+    private fun renderProgress() {
+        val length = carAudio.duration
+        if (carAudio.track == null || length <= 0) return
+        val at = carAudio.position.coerceIn(0, length)
+        mediaProgress.progress = (at * 1000L / length).toInt()
+        mediaElapsed.text = clock(at)
+        mediaTotal.text = clock(length)
+    }
+
+    private fun clock(ms: Int) = "%d:%02d".format(ms / 60000, ms / 1000 % 60)
 
     /** A tap on the climate bar or media card: the action, the cabin saved for the driver, the screen refreshed. */
     private fun tap(action: JSONObject) {
@@ -1008,9 +1416,11 @@ class MainActivity : Activity() {
         const val VOICE = 2
         const val SHORTCUTS = 3
         const val SAFE_EXIT = 4
-        const val MAX_COMMAND_MS = 8_000L
+        const val MAX_COMMAND_MS = 10_000L
+        const val FIRST_WAKE_WAIT_MS = 1_000L // "Hi Myra" and nothing more: a greeting
+        const val WAKE_LOOKBACK_MS = 1_500L // audio before the wake cut that voice ID hears ("Hi Myra")
         const val MAX_ENTRIES = 20
-        val EXAMPLES = listOf("Set the AC to 22", "Turn up the volume and play music",
+        val EXAMPLES = listOf("Take me home", "Set the AC to 22","Turn up the volume and play music",
             "Play some calm music", "Change the ambient light to pink",
             "The temperature is high", "Set the temperature",
             "Whenever I say I am very tired, play some calm music", "I feel exhausted",

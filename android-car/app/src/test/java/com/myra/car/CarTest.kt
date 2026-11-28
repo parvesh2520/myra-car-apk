@@ -34,6 +34,10 @@ class CarTest {
         val nav = car.apply(u("navigation_destination_request"), "take me to the airport")
         assertEquals("Airport", nav.command?.get("destination"))
         assertEquals("Airport", car.destination)
+        assertNull(car.apply(u("navigation_destination_request"), "take me home").command) // home not saved: asks for it
+        assertEquals("Airport", car.destination)
+        car.homeSaved = true
+        assertEquals("Home", car.apply(u("navigation_destination_request"), "take me home").command?.get("destination"))
         assertNull(car.apply(Understanding("volume_up", 0.2f, 0f, 1), "mumble").command) // too unsure: nothing done
     }
 }

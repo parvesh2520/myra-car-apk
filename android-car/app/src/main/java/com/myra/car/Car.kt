@@ -17,6 +17,7 @@ class Car {
     var volume = 12; private set
     var playing = false; private set
     var destination: String? = null; private set
+    var homeSaved = false // set by the screen from the saved home location
     internal var light = CabinColor.BLUE; private set
     var seatHeight = 3; private set
 
@@ -60,6 +61,7 @@ class Car {
             "ambient_light_set" -> Outcome("Which ambient light colour?", null)
             "seat_height_set" -> Outcome("Which seat height? Say a level from 1 to 5.", null)
             "shortcut_define", "shortcut_delete" -> Outcome("Say the shortcut's name and what it should do.", null)
+            "greeting" -> Outcome(VoiceLines.hello(null), null) // MainActivity names the recognised driver
             "dialog_confirm" -> Outcome("Okay.", null)
             "dialog_cancel" -> Outcome("Okay, cancelled.", null)
             "unsupported" -> Outcome("Sorry, I can't do that in this car.", null)
@@ -118,8 +120,9 @@ class Car {
         }
     }
 
-    /** A destination request: shown as the car's route (the demo has no map). */
+    /** A destination request: the home map shows the trip there (a demo, no turn-by-turn). */
     private fun lookUp(place: String): Outcome {
+        if (place == "Home" && !homeSaved) return Outcome("Your home isn't saved yet. Tap Set home on the map to add it.", null)
         destination = place
         return Outcome("Navigating to $place.", cmd(NAV_REQUEST, "destination" to place))
     }

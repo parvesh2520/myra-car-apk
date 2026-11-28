@@ -73,4 +73,48 @@ class UnderstandingTest {
         assertTrue("No clip for: ${missing.take(5)} (${missing.size} missing)", missing.isEmpty())
         assertEquals("Keys must be unique", lines.size, lines.map(VoiceLines::key).toSet().size)
     }
+
+    @Test
+    fun everyReplyIsSpokenInTheSameVoice() {
+        val car = Car().apply { homeSaved = true }
+        fun a(type: String, vararg kv: Pair<String, Any>) = JSONObject().put("type", type).apply { kv.forEach { put(it.first, it.second) } }
+        val actions = buildList {
+            for (t in 10..35) add(a("climate.setTemp", "value" to t))
+            for (d in listOf(-3, -1, 1, 3)) add(a("climate.adjustTemp", "delta" to d))
+            for (f in -1..8) add(a("climate.fan", "value" to f))
+            for (v in -2..32) add(a("media.volume", "value" to v))
+            for (h in 0..6) add(a("seat.height", "value" to h))
+            for (c in CabinColor.entries) add(a("ambient.color", "color" to c.key))
+            for (t in DemoTrack.entries) add(a("media.play", "genre" to t.key))
+            add(a("media.play", "genre" to "ghazal"))
+            add(a("ambient.color", "color" to "beige"))
+            for (d in listOf("Home", "Office", "Bandra Station")) add(a("nav.start", "destination" to d))
+            for (t in listOf("climate.power", "media.play", "media.pause", "media.skip", "nav.start", "nav.stop", "greet",
+                "thanks", "help", "", "window.open", "lights.hazard")) add(a(t))
+            add(a("climate.power", "on" to false))
+            add(a("media.skip", "dir" to -1))
+            add(a("media.volume", "mute" to true))
+        }
+        val replies = actions.map { car.run(it).reply } +
+            listOf("climate_on", "climate_off", "media_play", "media_pause", "media_next", "media_previous",
+                "climate_temperature_up", "climate_temperature_down", "climate_temperature_set", "climate_fan_speed_up",
+                "climate_fan_speed_down", "climate_fan_speed_set", "volume_up", "volume_down", "volume_set",
+                "ambient_light_set", "seat_height_set", "shortcut_define", "dialog_confirm", "dialog_cancel",
+                "unsupported", "greeting", "something_else", "navigation_destination_request")
+                .map { car.apply(Understanding(it, .9f, 0f, 1), "please").reply } +
+            car.apply(Understanding("climate_on", .3f, 0f, 1), "x").reply +
+            car.apply(Understanding("climate_on", .9f, .9f, 1), "x").reply +
+            listOf("Saved. Say “chill mode” to ac 20°c, ambient light: blue.", "Deleted the “chill mode” shortcut.",
+                "There's no shortcut called “chill mode”.", "Which shortcut did you mean? Say “chill” or “chill mode”.",
+                "I couldn't tell what “chill mode” should do. Try: whenever I say chill mode, set the AC to 20 and play music.",
+                "AC is on. Volume 12. Navigating to Bandra Station.")
+        val known = VoiceLines.all().toSet()
+        for (reply in replies) {
+            val lines = VoiceLines.forReply(reply)
+            assertTrue("Nothing spoken for: $reply", lines.isNotEmpty())
+            assertTrue("No clip line for: $reply -> $lines", lines.all { it in known })
+        }
+        assertEquals(listOf("AC is on.", "Volume 12.", "Navigating there now."), VoiceLines.forReply("AC is on. Volume 12. Navigating to Bandra Station."))
+        assertEquals(listOf("Temperature set to 22 degrees."), VoiceLines.forReply("Temperature set to 22°C."))
+    }
 }

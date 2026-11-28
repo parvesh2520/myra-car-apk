@@ -51,7 +51,7 @@ internal class VoiceIdView(
         setPadding(dp(14), 0, dp(14), 0)
         minHeight = dp(48)
     }
-    private val enrollBtn = button("Record voice sample", primary = true) {
+    private val enrollBtn = button("Record voice sample", primary = false) {
         val n = name.text.toString().trim()
         if (recording == null && n.isEmpty()) status.text = "Type the driver's name first." else toggle(n)
     }
@@ -59,25 +59,25 @@ internal class VoiceIdView(
 
     init {
         setBackgroundColor(activity.getColor(R.color.bg))
-        val row = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL; setPadding(dp(4), dp(8), dp(16), dp(16)) }
+        val row = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL; setPadding(dp(24), dp(20), dp(24), dp(20)) }
         row.addView(column(1f).apply {
             gravity = Gravity.CENTER
-            addView(identifyBtn, LinearLayout.LayoutParams(-1, dp(64)))
+            addView(identifyBtn, LinearLayout.LayoutParams(-2, dp(52)).apply { gravity = Gravity.CENTER_HORIZONTAL })
             addView(status.apply { gravity = Gravity.CENTER; setPadding(0, dp(14), 0, 0) })
             addView(detail.apply { gravity = Gravity.CENTER; setPadding(0, dp(8), 0, 0) })
         })
         row.addView(column(1f).apply {
-            setPadding(dp(12), 0, dp(12), 0)
+            setPadding(dp(24), 0, dp(24), 0)
             addView(text("Enroll a driver", 18f, R.color.ink).apply { typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL) })
             addView(text("Tap record, read the sentence below, then tap again. 3 samples give the best recognition.", 13f, R.color.ink2))
             addView(text("“Hello Myra, set the temperature to twenty two degrees and play my favourite music.”", 14f, R.color.ink).apply { setPadding(0, dp(10), 0, dp(10)) })
             addView(name)
-            addView(enrollBtn, LinearLayout.LayoutParams(-1, dp(52)).apply { topMargin = dp(12) })
+            addView(enrollBtn, LinearLayout.LayoutParams(-2, dp(48)).apply { topMargin = dp(16) })
         })
         row.addView(column(1f).apply {
             setBackgroundResource(R.drawable.panel)
-            setPadding(dp(14), dp(14), dp(14), dp(14))
-            addView(text("Driver profiles", 14f, R.color.ink2).apply { setTypeface(typeface, android.graphics.Typeface.BOLD) })
+            setPadding(dp(20), dp(20), dp(20), dp(20))
+            addView(text("Driver profiles", 18f, R.color.ink).apply { typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL) })
             addView(ScrollView(activity).apply { addView(list, -1, -2) }, LinearLayout.LayoutParams(-1, 0, 1f))
         })
         addView(row, -1, -1)

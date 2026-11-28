@@ -2,13 +2,15 @@ package com.myra.car
 
 import org.json.JSONObject
 
-internal enum class DemoTrack(val title: String, val audio: Int, vararg val aliases: String) {
-    CALM("Quiet Roads", R.raw.quiet_roads, "relaxing", "peaceful", "soothing"),
-    ENERGETIC("Night Drive", R.raw.night_drive, "upbeat", "high energy", "energetic"),
-    FOCUS("Clear Sky", R.raw.clear_sky, "instrumental", "study", "concentration"),
-    CHILL("City Glow", R.raw.city_glow, "lo fi", "lofi", "laid back");
+/** The app's own demo music. [art] is the cover colour on the home player. */
+internal enum class DemoTrack(val title: String, val audio: Int, val art: Int, vararg val aliases: String) {
+    CALM("Quiet Roads", R.raw.quiet_roads, 0xFF35566E.toInt(), "relaxing", "peaceful", "soothing"),
+    ENERGETIC("Night Drive", R.raw.night_drive, 0xFF7A3B3B.toInt(), "upbeat", "high energy", "energetic"),
+    FOCUS("Clear Sky", R.raw.clear_sky, 0xFF3F6A5A.toInt(), "instrumental", "study", "concentration"),
+    CHILL("City Glow", R.raw.city_glow, 0xFF6B5532.toInt(), "lo fi", "lofi", "laid back");
 
     val key get() = name.lowercase()
+    val mood get() = name.lowercase().replaceFirstChar { it.uppercase() }
 
     companion object {
         fun from(text: String): DemoTrack? {

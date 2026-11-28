@@ -13,8 +13,9 @@ android {
         applicationId = if (cameraSender) "com.myra.camerasender" else "com.myra.car"
         minSdk = 24 // Android 7.0, ONNX Runtime's minimum; the car runs Android 10
         targetSdk = 34
-        versionCode = 15
-        versionName = "3.3.0"
+        versionCode = 16
+        versionName = "3.4.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     // One APK per CPU type: the car's head unit runs 32-bit Android (armeabi-v7a); arm64 for phones and newer units.
@@ -65,6 +66,9 @@ android {
 dependencies {
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.32.0")
     implementation("com.google.ai.edge.litert:litert:1.4.2")
+    implementation("org.osmdroid:osmdroid-android:6.1.20") // home map: OSM tiles, no Play services on the head unit
     testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test:runner:1.6.2") // HandsFreeDeviceTest: the wake word on a device
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
     testImplementation("org.json:json:20250517") // android's org.json is a stub in local unit tests
 }

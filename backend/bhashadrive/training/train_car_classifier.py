@@ -37,7 +37,8 @@ LABELS = ["climate_temperature_up", "climate_temperature_down", "climate_tempera
           "dialog_cancel", "unsupported", "ambiguous",
           # added with value tagging: requests the app used to catch only with regular expressions
           "climate_fan_speed_set", "volume_set", "volume_mute", "ambient_light_set", "seat_up", "seat_down",
-          "seat_height_set", "navigation_stop", "shortcut_define", "shortcut_delete"]
+          "seat_height_set", "navigation_stop", "shortcut_define", "shortcut_delete",
+          "greeting"]  # "Hi Myra": the app greets the recognised driver
 
 
 def load(path: Path) -> list[dict]:
@@ -81,6 +82,8 @@ def v2_intent(cmds: list[dict]) -> str | None:
         return "media_next" if c["dir"] == 1 else "media_previous"
     if t == "nav.start":
         return "navigation_destination_request"
+    if t == "greet":
+        return "greeting"
     if t in {"climate.fan", "media.volume", "media.play"}:
         return None  # a value/mute/radio variant the V2 taxonomy has no intent for
     return "unsupported"  # a car function the demo cannot perform

@@ -1,15 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Head-unit dark: deep navy glass, blue-grey cards, one automotive blue signal colour, amber only for warnings. -->
-    <color name="bg">#060A12</color>
-    <color name="surface">#0E1521</color>
-    <color name="surface2">#17202E</color>
-    <color name="line">#243042</color>
-    <color name="ink">#ECF1F7</color>
-    <color name="ink2">#9EAABB</color>
-    <color name="ink3">#5F6C80</color>
+    <!-- Head unit at night: neutral graphite like dark glass and switchgear; one backlight blue for the mic and the route; amber only for warnings. -->
+    <color name="bg">#0A0B0D</color>
+    <color name="surface">#121316</color>
+    <color name="surface2">#1C1E22</color>
+    <color name="line">#25282D</color>
+    <color name="ink">#F1F2F4</color>
+    <color name="ink2">#A2A7AF</color>
+    <color name="ink3">#6A6F78</color>
     <color name="accent">#3D9BFF</color>
-    <color name="accentPressed">#2C7DD6</color>
-    <color name="accentDim">#0F2846</color>
+    <color name="accentPressed">#2F80D8</color>
+    <color name="accentDim">#16263A</color>
     <color name="warn">#E8A33D</color>
+    <!-- Home screen only: the Myra UI palette (navy glass, blue-grey cards, Myra blue). -->
+    <color name="home_bg">#080D14</color>
+    <color name="home_surface">#111B28</color>
+    <color name="home_surface2">#192638</color>
+    <color name="home_surface3">#22324A</color>
+    <color name="home_line">#1F9BA9BB</color>
+    <color name="home_line_strong">#3D9BA9BB</color>
+    <color name="home_accent">#4D9EFF</color>
+    <color name="home_accent_strong">#7DB8FF</color>
+    <color name="home_accent_soft">#244D9EFF</color>
+    <color name="home_ink">#F4F7FC</color>
+    <color name="home_ink2">#9BA9BB</color>
+    <color name="home_ink3">#6B7A8F</color>
+    <color name="home_warn">#E8B65E</color>
+    <color name="home_on_accent">#04101F</color>
 </resources>

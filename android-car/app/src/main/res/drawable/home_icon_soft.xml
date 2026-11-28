@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Icon well: accent-soft square, as on Myra UI's Home / Work tiles. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/home_accent_soft" />
+    <corners android:radius="12dp" />
+</shape>

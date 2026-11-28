@@ -27,7 +27,8 @@
   "seat_height_set",
   "navigation_stop",
   "shortcut_define",
-  "shortcut_delete"
+  "shortcut_delete",
+  "greeting"
  ],
  "tags": [
   "O",

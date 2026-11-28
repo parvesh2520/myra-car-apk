@@ -1,0 +1,76 @@
+{
+ "cases": [
+  {
+   "pcm": "case0.pcm",
+   "cut": 35040,
+   "myra_end": 39639,
+   "command_start": 44430
+  },
+  {
+   "pcm": "case1.pcm",
+   "cut": 45920,
+   "myra_end": 45456,
+   "command_start": 49847
+  },
+  {
+   "pcm": "case2.pcm",
+   "cut": 36320,
+   "myra_end": 40819,
+   "command_start": 40819
+  },
+  {
+   "pcm": "case3.pcm",
+   "cut": 41440,
+   "myra_end": 45782,
+   "command_start": 48170
+  },
+  {
+   "pcm": "case4.pcm",
+   "cut": 45280,
+   "myra_end": 49020,
+   "command_start": 50478
+  },
+  {
+   "pcm": "case5.pcm",
+   "cut": 44000,
+   "myra_end": 46510,
+   "command_start": 46510
+  },
+  {
+   "pcm": "case6.pcm",
+   "cut": 49120,
+   "myra_end": 53870,
+   "command_start": 53870
+  },
+  {
+   "pcm": "case7.pcm",
+   "cut": 37280,
+   "myra_end": 37217,
+   "command_start": 41049
+  },
+  {
+   "pcm": "case8.pcm",
+   "cut": null,
+   "myra_end": 52040,
+   "command_start": 52916
+  },
+  {
+   "pcm": "case9.pcm",
+   "cut": null,
+   "myra_end": 44585,
+   "command_start": 48242
+  },
+  {
+   "pcm": "case10.pcm",
+   "cut": null,
+   "myra_end": 40530,
+   "command_start": 43392
+  },
+  {
+   "pcm": "case11.pcm",
+   "cut": null,
+   "myra_end": 53583,
+   "command_start": 59212
+  }
+ ]
+}
